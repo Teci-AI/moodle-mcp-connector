@@ -5,6 +5,7 @@ local_mcpconnector plugin returns.
 """
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
@@ -37,6 +38,32 @@ BEHAVIOUR = {
 def descriptions() -> dict:
     tools = asyncio.run(server.mcp.list_tools())
     return {t.name: " ".join((t.description or "").split()) for t in tools}
+
+
+NOW_PROVIDED = [
+    "create_quiz", "add_quiz_question", "add_truefalse_question",
+    "add_shortanswer_question", "add_essay_question", "add_numerical_question",
+    "add_matching_question", "create_forum", "create_choice", "create_assignment",
+    "backup_course", "restore_course",
+]
+
+
+def test_no_tool_claims_its_function_is_missing(descriptions):
+    for name, text in descriptions.items():
+        for stale in ("NOTE: this function", "next release", "current release",
+                      "Until the plugin adds it"):
+            assert stale not in text, f"{name}: {stale!r}"
+
+
+@pytest.mark.parametrize("name", NOW_PROVIDED)
+def test_formerly_missing_tools_still_name_the_plugin(descriptions, name):
+    assert "Requires the local_mcpconnector plugin." in descriptions[name]
+
+
+def test_readme_marks_no_function_as_missing():
+    readme = (Path(server.__file__).resolve().parent.parent / "README.md").read_text(encoding="utf-8")
+    assert "planned next" not in readme
+    assert "not yet available" not in readme
 
 
 @pytest.mark.parametrize("name,returns", RETURNS.items())

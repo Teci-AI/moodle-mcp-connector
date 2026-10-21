@@ -231,14 +231,11 @@ Tools marked **plugin** need the companion plugin
 [moodle-local_mcpconnector](#requirements), which provides the
 `local_mcpconnector_*` functions.
 
-Not every plugin function exists yet. Those marked **planned next** (quizzes
-and questions) are due in the plugin's next release; those marked **not yet
-available** have no release planned. Until the plugin provides a function,
-its tool fails with a message naming the missing function rather than a raw
-Moodle error. The quiz and question tools are still part of
-`MOODLE_TOOLSET=content`, so they start working as soon as the plugin is
-upgraded. `build_course` checks every function an outline needs before it
-writes anything and rejects the outline if any is missing.
+Plugin version 2026102123 provides every function below. If the site runs an
+older plugin, or the token's service leaves a function out, the tool fails
+with a message naming the missing function rather than a raw Moodle error,
+and `build_course` checks every function an outline needs before it writes
+anything, rejecting the outline if any is missing.
 
 | Tool | Content | Moodle web service functions |
 |---|:---:|---|
@@ -247,23 +244,23 @@ writes anything and rejects the outline if any is missing.
 | `create_book` | ✓ | `local_mcpconnector_create_book` (plugin) |
 | `create_label` | ✓ | `local_mcpconnector_create_label` (plugin) |
 | `create_url` | ✓ | `local_mcpconnector_create_url` (plugin) |
-| `create_quiz` | ✓ | `local_mcpconnector_create_quiz` (plugin, planned next) |
-| `add_quiz_question` | ✓ | `local_mcpconnector_add_quiz_question` (plugin, planned next) |
-| `add_truefalse_question` | ✓ | `local_mcpconnector_add_truefalse_question` (plugin, planned next) |
-| `add_shortanswer_question` | ✓ | `local_mcpconnector_add_shortanswer_question` (plugin, planned next) |
-| `add_essay_question` | ✓ | `local_mcpconnector_add_essay_question` (plugin, planned next) |
-| `add_numerical_question` | ✓ | `local_mcpconnector_add_numerical_question` (plugin, planned next) |
-| `add_matching_question` | ✓ | `local_mcpconnector_add_matching_question` (plugin, planned next) |
+| `create_quiz` | ✓ | `local_mcpconnector_create_quiz` (plugin) |
+| `add_quiz_question` | ✓ | `local_mcpconnector_add_quiz_question` (plugin) |
+| `add_truefalse_question` | ✓ | `local_mcpconnector_add_truefalse_question` (plugin) |
+| `add_shortanswer_question` | ✓ | `local_mcpconnector_add_shortanswer_question` (plugin) |
+| `add_essay_question` | ✓ | `local_mcpconnector_add_essay_question` (plugin) |
+| `add_numerical_question` | ✓ | `local_mcpconnector_add_numerical_question` (plugin) |
+| `add_matching_question` | ✓ | `local_mcpconnector_add_matching_question` (plugin) |
 | `create_section` | ✓ | `local_mcpconnector_create_section` (plugin) |
 | `delete_section` | ✓ | `local_mcpconnector_delete_section` (plugin) |
 | `update_activity` | ✓ | `local_mcpconnector_update_activity` (plugin) |
 | `move_activity` | ✓ | `local_mcpconnector_move_activity` (plugin) |
 | `delete_activity` | ✓ | `local_mcpconnector_delete_activity` (plugin) |
-| `create_forum` | | `local_mcpconnector_create_forum` (plugin, not yet available) |
-| `create_choice` | | `local_mcpconnector_create_choice` (plugin, not yet available) |
-| `create_assignment` | | `local_mcpconnector_create_assignment` (plugin, not yet available) |
-| `backup_course` | | `local_mcpconnector_backup_course` (plugin, not yet available) |
-| `restore_course` | | `local_mcpconnector_restore_course` (plugin, not yet available) |
+| `create_forum` | | `local_mcpconnector_create_forum` (plugin) |
+| `create_choice` | | `local_mcpconnector_create_choice` (plugin) |
+| `create_assignment` | | `local_mcpconnector_create_assignment` (plugin) |
+| `backup_course` | | `local_mcpconnector_backup_course` (plugin) |
+| `restore_course` | | `local_mcpconnector_restore_course` (plugin) |
 | `build_course` | | `core_webservice_get_site_info` (to check every needed function first), `core_course_create_courses`, `local_mcpconnector_create_section`, `local_mcpconnector_create_page`, `local_mcpconnector_create_label`, `local_mcpconnector_create_url`, `local_mcpconnector_create_forum`, `local_mcpconnector_create_assignment`, `local_mcpconnector_create_choice`, `local_mcpconnector_create_quiz`, the six `local_mcpconnector_add_*_question` functions (plugin); with `rollback=True` also `core_course_delete_courses` |
 | `create_course` | | `core_course_create_courses` |
 | `update_course` | | `core_course_update_courses` |

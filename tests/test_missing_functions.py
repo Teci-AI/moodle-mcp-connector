@@ -11,7 +11,8 @@ from moodle_mcp_connector import server
 
 P = server.PLUGIN_PREFIX
 
-# Functions in the plugin's current (Phase 1) release.
+# Functions in the Phase 1 plugin release (2026102110), used to model a site
+# whose plugin predates quizzes, forums, choices, assignments and backups.
 PHASE1 = [P + n for n in (
     "get_info", "create_page", "create_book", "create_label", "create_url",
     "update_page", "create_section", "delete_section", "update_activity",

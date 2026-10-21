@@ -2062,9 +2062,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an empty Quiz activity (settings only).
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         This creates the quiz container; add questions with the add_*_question
         tools. Returns the new cmid and quiz instance id.
@@ -2096,9 +2094,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a multiple-choice question to an existing quiz.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `quizcmid` is the quiz's course module id (the cmid returned by
         create_quiz). `answers` is a list of dicts, each: {"text": "...",
@@ -2130,9 +2126,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a true/false question to a quiz.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `quizcmid` is the quiz's course module id. `correctanswer` = 1 for
         true, 0 for false. Returns the new question id and its slot.
@@ -2159,9 +2153,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a short-answer question to a quiz.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `answers` is a list of at least one accepted answer string (all treated
         as fully correct). `usecase` = 1 for case-sensitive matching. Returns
@@ -2193,9 +2185,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add an essay (free-text) question to a quiz.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         Essay questions are graded manually. `graderinfo` is private guidance
         for whoever marks it; `responsetemplate` pre-fills the student's answer
@@ -2226,9 +2216,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a numerical question to a quiz.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `answers` is a list of dicts, each: {"answer": 42.0, "tolerance": 0.5,
         "fraction": 1.0, "feedback": ""} — a student response within ±tolerance
@@ -2258,9 +2246,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a matching question to a quiz.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is planned
-        for the plugin's next release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `pairs` is a list of dicts, each: {"question": "Capital of France",
         "answer": "Paris"} — students match each left-hand item to the right
@@ -2313,9 +2299,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Forum activity in a course.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is not in
-        the plugin's current release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `type` is one of: general, eachuser, single, qanda, blog. Returns the
         new cmid and instance id.
@@ -2344,9 +2328,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Choice (poll) activity in a course.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is not in
-        the plugin's current release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         `options` is a list of at least two answer strings students pick from.
         Returns the new cmid and instance id.
@@ -2377,9 +2359,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an Assignment activity in a course.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is not in
-        the plugin's current release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         Enables online-text and file submissions with feedback comments.
         `duedate` is a unix timestamp (0 = no due date). Returns the new cmid
@@ -2808,9 +2788,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """Back a whole course up to a .mbz file on the local machine.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is not in
-        the plugin's current release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         The backup runs on the Moodle server, is transferred base64-encoded,
         and is written to `save_to` (default: ./course_<id>.mbz). Content-only
@@ -2840,9 +2818,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Restore a .mbz backup file into a NEW course.
 
-        Requires the local_mcpconnector plugin. NOTE: this function is not in
-        the plugin's current release. Until the plugin adds it, the call fails
-        with a message saying so.
+        Requires the local_mcpconnector plugin.
 
         Reads the local `filepath` (created by backup_course, or any Moodle
         .mbz), uploads it and restores it as a brand-new course in
