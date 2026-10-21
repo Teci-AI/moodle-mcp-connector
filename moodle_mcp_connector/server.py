@@ -1788,7 +1788,11 @@ def _register_write_tools() -> None:
         """⚠️ WRITES LIVE DATA. Create a Page activity (HTML) in a course.
 
         Requires the local_mcpconnector plugin on the Moodle site. `content` is the
-        page body (HTML). Returns the new cmid and page instance id.
+        page body (HTML). `section` is the section number and must already
+        exist: the plugin does not create missing sections and fails with
+        "sectionnotfound" (use create_section first).
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
             "local_mcpconnector_create_page",
@@ -1814,8 +1818,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Book activity plus its first chapter.
 
-        Requires the local_mcpconnector plugin. Returns cmid, book instance id, and
-        the first chapter id.
+        Requires the local_mcpconnector plugin. `chaptercontent` is HTML.
+        `section` is the section number and must already exist: the plugin
+        does not create missing sections and fails with "sectionnotfound".
+
+        Returns {"cmid": int, "instanceid": int, "chapterid": int}, where
+        chapterid is the first chapter's id.
         """
         return await _call(
             "local_mcpconnector_create_book",
@@ -1840,7 +1848,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Label (inline text/HTML) in a course.
 
-        Requires the local_mcpconnector plugin. Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. Leave `name` empty to have one
+        built from the label's text. `section` is the section number and must
+        already exist: the plugin does not create missing sections and fails
+        with "sectionnotfound".
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
             "local_mcpconnector_create_label",
@@ -1865,7 +1878,13 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a URL resource in a course.
 
-        Requires the local_mcpconnector plugin. Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. `display` must be a display
+        mode enabled in the site's URL settings; 0 (automatic) is the safe
+        default. `section` is the section number and must already exist: the
+        plugin does not create missing sections and fails with
+        "sectionnotfound".
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
             "local_mcpconnector_create_url",
@@ -2199,7 +2218,10 @@ def _register_write_tools() -> None:
         """⚠️ WRITES LIVE DATA. Create a new section (topic) in a course.
 
         Requires the local_mcpconnector plugin. `position` 0 appends to the end.
-        Returns the new section id and its number within the course.
+
+        Returns {"sectionid": int, "sectionnum": int}: the new section's id
+        and its number within the course (the `section` value other tools
+        take).
         """
         return await _call(
             "local_mcpconnector_create_section",
@@ -2217,7 +2239,11 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin. `cmid` is the activity's course
         module id. Leave `name` empty to keep it; `visible` = 1 show, 0 hide,
-        -1 leave unchanged. Returns what was changed.
+        -1 leave unchanged.
+
+        Returns {"cmid": int, "name": str, "visible": int, "changed": [...]},
+        with the activity's resulting name and visibility; `changed` lists
+        which of "name" and "visible" were actually modified.
         """
         return await _call(
             "local_mcpconnector_update_activity",
@@ -2230,7 +2256,9 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin. `cmid` is the page's course module
         id; `content` is the new HTML body. Leave `intro` empty to keep the
-        current description. Returns the cmid and a success flag.
+        current description.
+
+        Returns {"cmid": int, "success": bool}.
         """
         return await _call(
             "local_mcpconnector_update_page",
@@ -2242,8 +2270,12 @@ def _register_write_tools() -> None:
         """⚠️ WRITES LIVE DATA. Move an activity to a different course section.
 
         Requires the local_mcpconnector plugin. `cmid` is the activity's course
-        module id; `section` is the target section number. Returns the cmid and
-        the section it now lives in.
+        module id; `section` is the target section number, which must already
+        exist (the plugin fails with "sectionnotfound" otherwise). The activity
+        is placed at the END of the target section.
+
+        Returns {"cmid": int, "section": int}: the section number it now
+        lives in.
         """
         return await _call(
             "local_mcpconnector_move_activity",
@@ -2281,8 +2313,9 @@ def _register_write_tools() -> None:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete an activity from a course.
 
         Requires the local_mcpconnector plugin. `cmid` is the activity's course
-        module id. This permanently removes the activity and its data. Returns
-        the deleted cmid and a success flag.
+        module id. This permanently removes the activity and its data.
+
+        Returns {"cmid": int, "success": bool}.
         """
         return await _call("local_mcpconnector_delete_activity", {"cmid": cmid})
 
@@ -2346,7 +2379,9 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin. `sectionnum` is the section number
         (1 or higher — the general section 0 cannot be deleted). This removes the
-        section AND every activity inside it. Returns a success flag.
+        section AND every activity inside it.
+
+        Returns {"success": bool}.
         """
         return await _call(
             "local_mcpconnector_delete_section",
