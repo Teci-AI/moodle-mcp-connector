@@ -26,11 +26,13 @@ see [LICENSE](LICENSE).
 - Python 3.11 or newer
 - A Moodle site with web services enabled and the REST protocol turned on
 - A web service token for a dedicated Moodle account (see [Security](#security))
-- For the write tools that create pages, books, labels, quizzes, questions,
-  sections and other activities: the companion Moodle plugin
-  **moodle-local_mcpconnector**, which will be published separately.
-  Read tools and the core-Moodle write tools (courses, users, enrolments,
-  grading and so on) work without it.
+- For the write tools that create and edit pages, books, labels, URLs,
+  sections and activities: the companion Moodle plugin
+  **local_mcpconnector** (repository: moodle-local_mcpconnector), version
+  2026102110 or later. Its first release has been tested on Moodle 5.3.
+  `server_info` reports the installed plugin version and whether it is
+  compatible. Read tools and the core-Moodle write tools (courses, users,
+  enrolments, grading and so on) work without it.
 
 ## Installation
 
@@ -79,18 +81,20 @@ MOODLE_TOOLSET=content
 
 ### Setting up Moodle
 
+First, on any site:
+
 1. *Site administration → General → Advanced features*: enable web services.
 2. *Site administration → Server → Web services → Manage protocols*: enable REST.
-3. Create a dedicated user for the agent and give it only the roles it needs.
-4. *Site administration → Server → Web services → External services*: add a
-   custom service, add only the functions your tools need (see
-   [Tools](#tools)), and authorise the dedicated user.
-5. For `read_activity` and `download_file`, tick **Can download files** on the
-   service.
-6. *Manage tokens*: create a token for the dedicated user and that service.
+3. Create a dedicated user for the agent (see [Security](#security)). Give it
+   only the roles it needs, in the courses it should work on, and make sure
+   it has the `webservice/rest:use` capability.
 
-For the content tool set in read-only mode, the service needs only these
-functions:
+#### Content tool set: use the plugin's ready-made service
+
+The local_mcpconnector plugin ships a web service called **MCP Connector
+Service** (short name `mcpconnector`). It contains every `local_mcpconnector_*`
+function plus the 8 core read functions the content tool set uses, with file
+downloads allowed:
 
 ```
 core_webservice_get_site_info
@@ -102,6 +106,37 @@ mod_quiz_get_quizzes_by_courses
 mod_lesson_get_lessons_by_courses
 mod_lesson_get_pages
 ```
+
+It is disabled by default and limited to authorised users. To use it:
+
+4. Install the plugin (*Site administration → Plugins → Install plugins*, or
+   unpack it into `local/mcpconnector`) and complete the upgrade.
+5. *Site administration → Server → Web services → External services*: edit
+   **MCP Connector Service**, tick **Enabled**, and save.
+6. On the same page, open **Authorised users** for that service and add the
+   dedicated user.
+7. *Site administration → Server → Web services → Manage tokens*: create a
+   token for the dedicated user and **MCP Connector Service**. Put it in
+   `MOODLE_TOKEN`, and set `MOODLE_TOOLSET=content`.
+
+#### Other tools: use a custom service
+
+The tools outside the content set (users, enrolments, grades, course
+creation, assignments, forums, messages and so on) call core functions that
+the ready-made service does not include. To use them, create your own
+service instead:
+
+4. *Site administration → Server → Web services → External services*: add a
+   custom service, add only the functions your tools need (see the
+   [tool tables](#tools)), and authorise the dedicated user. If you also want
+   the plugin's write tools, add the `local_mcpconnector_*` functions you
+   need.
+5. Tick **Can download files** on the service if you use `read_activity` or
+   `download_file`.
+6. *Manage tokens*: create a token for the dedicated user and that service.
+
+A token belongs to exactly one service, so a token for the ready-made service
+can only reach the content tools, whatever `MOODLE_TOOLSET` says.
 
 ## OpenCode configuration
 
