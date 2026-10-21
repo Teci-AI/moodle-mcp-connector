@@ -2065,7 +2065,12 @@ def _register_write_tools() -> None:
         Requires the local_mcpconnector plugin.
 
         This creates the quiz container; add questions with the add_*_question
-        tools. Returns the new cmid and quiz instance id.
+        tools. `timeopen` and `timeclose` are unix timestamps; `timeclose` must not
+        be before `timeopen`. Settings this tool has no parameter for take the
+        site's quiz defaults. `section` must already exist ("sectionnotfound"
+        otherwise).
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
             "local_mcpconnector_create_quiz",
@@ -2097,11 +2102,23 @@ def _register_write_tools() -> None:
         Requires the local_mcpconnector plugin.
 
         `quizcmid` is the quiz's course module id (the cmid returned by
-        create_quiz). `answers` is a list of dicts, each: {"text": "...",
-        "fraction": 1.0, "feedback": ""} where fraction is the grade weight
-        (1.0 = fully correct, 0 = wrong, negatives penalise). Provide at least
-        two answers. `single=1` means exactly one correct answer. Returns the
-        new question id and its slot in the quiz.
+        create_quiz). `answers` is a list of at least two dicts, each:
+        {"text": "...", "fraction": 1.0, "feedback": ""}, where fraction is the
+        share of the mark the answer earns; answers without "fraction" are worth 0.
+        With `single=1` (one correct answer) one answer must have fraction 1.0.
+        With `single=0` (several correct answers) the positive fractions must add
+        up to 1.0.
+
+        Fractions must be Moodle grade values: 1.0, 0.9, 0.8333333, 0.8, 0.75, 0.7,
+        0.6666667, 0.6, 0.5, 0.4, 0.3333333, 0.3, 0.25, 0.2, 0.1666667, 0.1428571,
+        0.125, 0.1111111, 0.1, 0.05, 0, or their negatives. Values within 0.005 of
+        one are accepted (0.33 counts as a third).
+
+        The question is added at the end of the quiz, in the quiz's own question
+        bank. Adding fails with "cannoteditafterattempts" once students have
+        attempted the quiz.
+
+        Returns {"questionid": int, "slot": int}.
         """
         _require_list("answers", answers, 2)
         return await _call(
@@ -2128,8 +2145,14 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        `quizcmid` is the quiz's course module id. `correctanswer` = 1 for
-        true, 0 for false. Returns the new question id and its slot.
+        `quizcmid` is the quiz's course module id. `correctanswer` = 1 for true,
+        0 for false.
+
+        The question is added at the end of the quiz, in the quiz's own question
+        bank. Adding fails with "cannoteditafterattempts" once students have
+        attempted the quiz.
+
+        Returns {"questionid": int, "slot": int}.
         """
         return await _call(
             "local_mcpconnector_add_truefalse_question",
@@ -2155,9 +2178,14 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        `answers` is a list of at least one accepted answer string (all treated
-        as fully correct). `usecase` = 1 for case-sensitive matching. Returns
-        the new question id and its slot.
+        `answers` is a list of at least one accepted answer string (all treated as
+        fully correct). `usecase` = 1 for case-sensitive matching.
+
+        The question is added at the end of the quiz, in the quiz's own question
+        bank. Adding fails with "cannoteditafterattempts" once students have
+        attempted the quiz.
+
+        Returns {"questionid": int, "slot": int}.
         """
         _require_list("answers", answers)
         return await _call(
@@ -2187,10 +2215,17 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        Essay questions are graded manually. `graderinfo` is private guidance
-        for whoever marks it; `responsetemplate` pre-fills the student's answer
-        box; `attachments` allows file uploads (0 = none, 1-3 = that many, -1 =
-        unlimited). Returns the new question id and its slot.
+        Essay questions are graded manually. `graderinfo` is private guidance for
+        whoever marks it; `responsetemplate` pre-fills the student's answer box.
+        `responselines` (the answer box height) must be one of 2, 3, 5, 10, 15,
+        20, 25, 30, 35, 40. `attachments` (files the student may upload) must be
+        one of 0, 1, 2, 3, or -1 for unlimited.
+
+        The question is added at the end of the quiz, in the quiz's own question
+        bank. Adding fails with "cannoteditafterattempts" once students have
+        attempted the quiz.
+
+        Returns {"questionid": int, "slot": int}.
         """
         return await _call(
             "local_mcpconnector_add_essay_question",
@@ -2218,10 +2253,22 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        `answers` is a list of dicts, each: {"answer": 42.0, "tolerance": 0.5,
-        "fraction": 1.0, "feedback": ""} — a student response within ±tolerance
-        of answer earns that fraction of the marks (1.0 = full credit). Give at
-        least one answer. Returns the new question id and its slot.
+        `answers` is a list of at least one dict, each: {"answer": 42.0,
+        "tolerance": 0.5, "fraction": 1.0, "feedback": ""}. A student response
+        within ±tolerance of answer earns that fraction of the mark. One answer
+        must have fraction 1.0 (the default when "fraction" is left out), and
+        tolerance must be 0 or more.
+
+        Fractions must be Moodle grade values: 1.0, 0.9, 0.8333333, 0.8, 0.75, 0.7,
+        0.6666667, 0.6, 0.5, 0.4, 0.3333333, 0.3, 0.25, 0.2, 0.1666667, 0.1428571,
+        0.125, 0.1111111, 0.1, 0.05, 0, or their negatives. Values within 0.005 of
+        one are accepted (0.33 counts as a third).
+
+        The question is added at the end of the quiz, in the quiz's own question
+        bank. Adding fails with "cannoteditafterattempts" once students have
+        attempted the quiz.
+
+        Returns {"questionid": int, "slot": int}.
         """
         _require_list("answers", answers)
         return await _call(
@@ -2249,9 +2296,15 @@ def _register_write_tools() -> None:
         Requires the local_mcpconnector plugin.
 
         `pairs` is a list of dicts, each: {"question": "Capital of France",
-        "answer": "Paris"} — students match each left-hand item to the right
-        answer. At least three pairs: Moodle requires at least two questions
-        and three answers. Returns the new question id and its slot.
+        "answer": "Paris"}. Students match each left-hand item to the right
+        answer. At least three pairs: Moodle requires at least two questions and
+        three answers.
+
+        The question is added at the end of the quiz, in the quiz's own question
+        bank. Adding fails with "cannoteditafterattempts" once students have
+        attempted the quiz.
+
+        Returns {"questionid": int, "slot": int}.
         """
         _require_list("pairs", pairs, 3)
         return await _call(
@@ -2302,8 +2355,11 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        `type` is one of: general, eachuser, single, qanda, blog. Returns the
-        new cmid and instance id.
+        `type` is one of: general, eachuser, single, qanda, blog. Settings this
+        tool has no parameter for take the site's forum defaults. `section` must
+        already exist ("sectionnotfound" otherwise).
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
             "local_mcpconnector_create_forum",
@@ -2331,8 +2387,11 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
+        `question` becomes the choice's description, shown above the options.
         `options` is a list of at least two answer strings students pick from.
-        Returns the new cmid and instance id.
+        `section` must already exist ("sectionnotfound" otherwise).
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         _require_list("options", options, 2)
         return await _call(
@@ -2363,8 +2422,12 @@ def _register_write_tools() -> None:
         Requires the local_mcpconnector plugin.
 
         Enables online-text and file submissions with feedback comments.
-        `duedate` is a unix timestamp (0 = no due date). Returns the new cmid
-        and instance id.
+        `duedate` is a unix timestamp (0 = no due date). `grade` must be between
+        0 and the site's maximum grade (100 by default). Settings this tool has no
+        parameter for take the site's assignment defaults. `section` must already
+        exist ("sectionnotfound" otherwise).
+
+        Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
             "local_mcpconnector_create_assignment",
@@ -2791,10 +2854,16 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        The backup runs on the Moodle server, is transferred base64-encoded,
-        and is written to `save_to` (default: ./course_<id>.mbz). Content-only
-        by default; pass includeusers=1 to keep enrolments and user data.
-        Courses over 100MB are refused. Returns the saved path and size.
+        The backup runs on the Moodle server and the plugin returns
+        {"filename": str, "size": int, "content_base64": str}, where filename is
+        like backup-moodle2-course-12-bio101-20261021-1200-nu.mbz. This tool
+        decodes it and writes it to `save_to` (default: ./course_<id>.mbz).
+        Content-only by default. includeusers=1 keeps enrolments and user data,
+        but needs the moodle/backup:userinfo capability, which managers have and
+        teachers do not by default. Backups over 100 MB are refused.
+
+        Returns {"saved_to": str, "size": int, "filename": str}: the local path
+        written, the size in bytes, and Moodle's name for the backup.
         """
         import base64 as _b64
 
@@ -2821,10 +2890,20 @@ def _register_write_tools() -> None:
 
         Requires the local_mcpconnector plugin.
 
-        Reads the local `filepath` (created by backup_course, or any Moodle
-        .mbz), uploads it and restores it as a brand-new course in
-        `categoryid`. `fullname` and `shortname` override the names stored in
-        the backup. Returns the new course's id and names.
+        Reads the local `filepath` (created by backup_course, or any Moodle .mbz),
+        uploads it base64-encoded and restores it as a brand-new course in
+        `categoryid`; it never overwrites an existing course. `fullname` and
+        `shortname` override the names stored in the backup. If a name clashes
+        with an existing course, Moodle adds a " copy 1" (full name) or "_1"
+        (short name) suffix, so report the names from the result, not the ones
+        requested.
+
+        The token's user needs moodle/course:create, moodle/restore:restorecourse
+        and moodle/restore:uploadfile in the target category (a category manager,
+        not a teacher). The web server's post_max_size must allow the base64
+        upload, about 4/3 of the .mbz size.
+
+        Returns {"courseid": int, "fullname": str, "shortname": str}.
         """
         import base64 as _b64
 
