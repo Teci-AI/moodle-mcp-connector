@@ -6,6 +6,9 @@ are too short, with a clear message, before sending anything.
 """
 
 import asyncio
+import inspect
+import json
+import re
 
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
@@ -29,7 +32,7 @@ CASES = {
                                "answers", 1, {"answer": 42, "tolerance": 0}),
     "add_matching_question": (P + "add_matching_question",
                               {"quizcmid": 1, "name": "Q", "questiontext": "?"},
-                              "pairs", 2, {"question": "France", "answer": "Paris"}),
+                              "pairs", 3, {"question": "France", "answer": "Paris"}),
     "create_choice": (P + "create_choice", {"courseid": 2, "name": "Poll", "question": "?"},
                       "options", 2, "Yes"),
     "enrol_users": ("enrol_manual_enrol_users", {}, "enrolments", 1,
@@ -96,8 +99,9 @@ def test_minimum_length_list_is_sent(fake_call, tool):
     ({"type": "quiz", "name": "Q", "questions": [{"qtype": "numerical", "answers": []}]},
      "questions[0].answers needs at least 1 item, got 0"),
     ({"type": "quiz", "name": "Q", "questions": [
-        {"qtype": "matching", "pairs": [{"question": "a", "answer": "b"}]}]},
-     "questions[0].pairs needs at least 2 items, got 1"),
+        {"qtype": "matching", "pairs": [{"question": "a", "answer": "b"},
+                                        {"question": "c", "answer": "d"}]}]},
+     "questions[0].pairs needs at least 3 items, got 2"),
 ])
 def test_build_course_rejects_short_lists_before_any_call(fake_call, activity, problem):
     fake = fake_call({})
@@ -127,10 +131,23 @@ def test_build_course_accepts_lists_at_minimum(fake_call):
         {"type": "quiz", "name": "Q", "questions": [
             {"qtype": "multichoice", "answers": [{"text": "A", "fraction": 1}, {"text": "B", "fraction": 0}]},
             {"qtype": "matching", "pairs": [{"question": "a", "answer": "b"},
-                                            {"question": "c", "answer": "d"}]},
+                                            {"question": "c", "answer": "d"},
+                                            {"question": "e", "answer": "f"}]},
             {"qtype": "truefalse", "correct": 1},  # needs no list
         ]},
     ]}]}
     call_tool("build_course", {"outline": outline})
     assert [name for name, _ in fake.calls][-3:] == [
         P + "add_quiz_question", P + "add_matching_question", P + "add_truefalse_question"]
+
+
+def test_build_course_docstring_example_is_a_valid_outline():
+    """The example agents copy from must pass validation (e.g. 3 matching pairs)."""
+    doc = inspect.getsource(server._register_write_tools)
+    example = doc.split("`outline` shape:", 1)[1].split("Creates the course", 1)[0]
+    example = re.sub(r"#[^\n]*", "", example)  # drop the "# optional" comments
+    outline = json.loads(example)
+    assert server._validate_outline(outline) == []
+    [matching] = [q for q in outline["sections"][0]["activities"][-1]["questions"]
+                  if q["qtype"] == "matching"]
+    assert len(matching["pairs"]) == 3

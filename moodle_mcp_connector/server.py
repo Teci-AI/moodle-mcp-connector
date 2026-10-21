@@ -258,7 +258,7 @@ _QUESTION_LISTS = {
     "multichoice": ("answers", 2),
     "shortanswer": ("answers", 1),
     "numerical": ("answers", 1),
-    "matching": ("pairs", 2),
+    "matching": ("pairs", 3),  # Moodle: at least 2 questions and 3 answers
 }
 
 
@@ -2250,9 +2250,10 @@ def _register_write_tools() -> None:
 
         `pairs` is a list of dicts, each: {"question": "Capital of France",
         "answer": "Paris"} — students match each left-hand item to the right
-        answer. At least two pairs. Returns the new question id and its slot.
+        answer. At least three pairs: Moodle requires at least two questions
+        and three answers. Returns the new question id and its slot.
         """
-        _require_list("pairs", pairs, 2)
+        _require_list("pairs", pairs, 3)
         return await _call(
             "local_mcpconnector_add_matching_question",
             {
@@ -2881,7 +2882,8 @@ def _register_write_tools() -> None:
                    "answers": [{"answer": 42, "tolerance": 0.5}]},
                   {"qtype": "matching", "name": "Q6", "text": "...",
                    "pairs": [{"question": "France", "answer": "Paris"},
-                              {"question": "Italy", "answer": "Rome"}]}
+                              {"question": "Italy", "answer": "Rome"},
+                              {"question": "Spain", "answer": "Madrid"}]}
                 ]}
              ]}
           ]
