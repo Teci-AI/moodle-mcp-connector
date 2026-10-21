@@ -428,8 +428,9 @@ async def server_info() -> dict:
     site. When they are, it also reports the plugin's version and release
     (from local_mcpconnector_get_info) and plugin_compatible: whether that
     version is at least plugin_min_version. If the version cannot be read,
-    plugin_compatible is false and plugin_error says why. Never returns the
-    token itself.
+    plugin_compatible is false and plugin_error says why. If the site cannot
+    be reached or rejects the token, connected is false and error says why.
+    Never returns the token itself.
     """
     info: dict[str, Any] = {
         "server_version": SERVER_VERSION,
@@ -449,6 +450,12 @@ async def server_info() -> dict:
         })
     except MoodleError as exc:
         info.update({"connected": False, "error": str(exc)})
+        return info
+    except httpx.HTTPError as exc:
+        # Unreachable host, timeout, TLS failure or HTTP error status. The
+        # token travels in the POST body, so the message cannot contain it.
+        # Some httpx errors have no message, hence the type name.
+        info.update({"connected": False, "error": f"{type(exc).__name__}: {exc}".rstrip(": ")})
         return info
     info.update(await _plugin_status(funcs))
     return info

@@ -3,6 +3,7 @@
 import asyncio
 
 import httpx
+import pytest
 
 from conftest import site_info
 from moodle_mcp_connector import server
@@ -82,6 +83,31 @@ def test_no_plugin_skips_get_info(fake_call):
     assert info["plugin_installed"] is False
     assert info["plugin_compatible"] is False
     assert not fake.called(GET_INFO)
+
+
+@pytest.mark.parametrize("failure,expected", [
+    (httpx.ConnectError("[Errno 11001] getaddrinfo failed"),
+     "ConnectError: [Errno 11001] getaddrinfo failed"),
+    (httpx.ReadTimeout(""), "ReadTimeout"),
+])
+def test_unreachable_site_reports_disconnected(fake_call, failure, expected):
+    fake = fake_call({"core_webservice_get_site_info": failure})
+    info = run_server_info()
+    assert info["connected"] is False
+    assert info["error"] == expected
+    assert info["server_version"] == server.SERVER_VERSION  # rest of the report intact
+    assert not fake.called(GET_INFO)
+
+
+def test_http_error_status_reports_disconnected(monkeypatch):
+    # The real _call, against a server answering 503 to everything.
+    real = httpx.AsyncClient
+    transport = httpx.MockTransport(lambda request: httpx.Response(503))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=transport, **kw))
+    info = run_server_info()
+    assert info["connected"] is False
+    assert info["error"].startswith("HTTPStatusError:") and "503" in info["error"]
+    assert "SECRET-TEST-TOKEN" not in info["error"]
 
 
 def test_site_info_failure_still_reports_disconnected(fake_call):
