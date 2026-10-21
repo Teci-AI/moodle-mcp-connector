@@ -29,7 +29,7 @@ see [LICENSE](LICENSE).
 - For the write tools that create and edit pages, books, labels, URLs,
   sections and activities: the companion Moodle plugin
   **local_mcpconnector** (repository: moodle-local_mcpconnector), version
-  2026102110 or later. Its first release has been tested on Moodle 5.3.
+  2026102123 or later, which has been tested on Moodle 5.3.
   `server_info` reports the installed plugin version and whether it is
   compatible. Read tools and the core-Moodle write tools (courses, users,
   enrolments, grading and so on) work without it.

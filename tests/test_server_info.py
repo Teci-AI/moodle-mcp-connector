@@ -9,22 +9,38 @@ from conftest import site_info
 from moodle_mcp_connector import server
 
 GET_INFO = "local_mcpconnector_get_info"
+MIN = server.MIN_PLUGIN_VERSION
 
 
 def run_server_info() -> dict:
     return asyncio.run(server.server_info())
 
 
+def test_minimum_plugin_version():
+    # The first plugin release that provides every function this client calls.
+    assert server.MIN_PLUGIN_VERSION == 2026102123
+
+
+def test_phase1_plugin_is_now_incompatible(fake_call):
+    fake_call({
+        "core_webservice_get_site_info": site_info(GET_INFO),
+        GET_INFO: {"component": "local_mcpconnector", "version": 2026102110, "release": "0.1.0"},
+    })
+    info = run_server_info()
+    assert info["plugin_compatible"] is False
+    assert info["plugin_min_version"] == 2026102123
+
+
 def test_compatible_plugin(fake_call):
     fake = fake_call({
         "core_webservice_get_site_info": site_info("local_mcpconnector_create_page", GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector", "version": 2026102110, "release": "0.1.0"},
+        GET_INFO: {"component": "local_mcpconnector", "version": MIN, "release": "0.2.0"},
     })
     info = run_server_info()
     assert info["connected"] is True
     assert info["plugin_installed"] is True
-    assert info["plugin_version"] == 2026102110
-    assert info["plugin_release"] == "0.1.0"
+    assert info["plugin_version"] == MIN
+    assert info["plugin_release"] == "0.2.0"
     assert info["plugin_compatible"] is True
     assert "plugin_error" not in info
     assert fake.calls[-1] == (GET_INFO, {})  # called with no params
@@ -43,10 +59,10 @@ def test_newer_plugin_is_compatible_and_string_version_accepted(fake_call):
 def test_old_plugin_is_incompatible(fake_call):
     fake_call({
         "core_webservice_get_site_info": site_info(GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector", "version": 2026102109, "release": "0.0.9"},
+        GET_INFO: {"component": "local_mcpconnector", "version": MIN - 1, "release": "0.1.0"},
     })
     info = run_server_info()
-    assert info["plugin_version"] == 2026102109
+    assert info["plugin_version"] == MIN - 1
     assert info["plugin_compatible"] is False
 
 

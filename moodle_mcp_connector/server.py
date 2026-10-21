@@ -386,7 +386,7 @@ SERVER_VERSION = "0.1.0"
 
 # Oldest local_mcpconnector plugin version (its version.php $plugin->version)
 # whose functions and return values this server is written against.
-MIN_PLUGIN_VERSION = 2026102110
+MIN_PLUGIN_VERSION = 2026102123
 
 
 async def _plugin_status(funcs: set) -> dict:
