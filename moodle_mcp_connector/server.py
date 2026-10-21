@@ -232,6 +232,36 @@ def _flatten_value(key: str, value: Any, flat: dict[str, str]) -> None:
         flat[key] = str(value)
 
 
+# Form encoding cannot express an empty list: _flatten sends nothing for [],
+# and Moodle then reports a confusing "missing required parameter" error. So
+# list parameters are checked here, before anything is sent.
+
+def _list_problems(name: str, value: Any, minimum: int) -> list[str]:
+    """Describe why `value` is not a list of at least `minimum` items, if it isn't."""
+    if not isinstance(value, list):
+        return [f"{name} must be a list of at least {minimum}"]
+    if len(value) < minimum:
+        return [f"{name} needs at least {minimum} item{'s' if minimum > 1 else ''}, "
+                f"got {len(value)}"]
+    return []
+
+
+def _require_list(name: str, value: Any, minimum: int = 1) -> None:
+    """Raise a clear MoodleError, before calling Moodle, if a list is too short."""
+    problems = _list_problems(name, value, minimum)
+    if problems:
+        raise MoodleError(f"{problems[0]}; nothing was sent to Moodle.")
+
+
+# The list each question type needs, and its minimum length.
+_QUESTION_LISTS = {
+    "multichoice": ("answers", 2),
+    "shortanswer": ("answers", 1),
+    "numerical": ("answers", 1),
+    "matching": ("pairs", 2),
+}
+
+
 # --------------------------------------------------------------------------- #
 # build_course outline validation (pure — no network, unit-testable).
 # --------------------------------------------------------------------------- #
@@ -330,15 +360,21 @@ def _validate_outline(outline: Any) -> list[str]:
                 errors.append(
                     f"{aw}.type {atype!r} is not one of {sorted(_ACTIVITY_TYPES)}")
                 continue
+            if atype == "choice":
+                errors.extend(_list_problems(f"{aw}.options", act.get("options"), 2))
             if atype == "quiz":
                 for qi, q in enumerate(act.get("questions", []) or []):
                     qw = f"{aw}.questions[{qi}]"
+                    qtype = q.get("qtype", "multichoice") if isinstance(q, dict) else None
                     if not isinstance(q, dict):
                         errors.append(f"{qw} must be an object")
-                    elif q.get("qtype", "multichoice") not in _QUESTION_TYPES:
+                    elif qtype not in _QUESTION_TYPES:
                         errors.append(
                             f"{qw}.qtype {q.get('qtype')!r} is not one of "
                             f"{sorted(_QUESTION_TYPES)}")
+                    elif qtype in _QUESTION_LISTS:
+                        key, minimum = _QUESTION_LISTS[qtype]
+                        errors.extend(_list_problems(f"{qw}.{key}", q.get(key), minimum))
     return errors
 
 
@@ -472,6 +508,7 @@ async def list_quizzes(courseids: list[int]) -> dict:
 
     Read-only. Pass a list of course IDs.
     """
+    _require_list("courseids", courseids)
     return await _call("mod_quiz_get_quizzes_by_courses", {"courseids": courseids})
 
 
@@ -2063,6 +2100,7 @@ def _register_write_tools() -> None:
         two answers. `single=1` means exactly one correct answer. Returns the
         new question id and its slot in the quiz.
         """
+        _require_list("answers", answers, 2)
         return await _call(
             "local_mcpconnector_add_quiz_question",
             {
@@ -2118,10 +2156,11 @@ def _register_write_tools() -> None:
         for the plugin's next release. Until the plugin adds it, the call fails
         with a message saying so.
 
-        `answers` is a list of accepted answer strings (all treated as fully
-        correct). `usecase` = 1 for case-sensitive matching. Returns the new
-        question id and its slot.
+        `answers` is a list of at least one accepted answer string (all treated
+        as fully correct). `usecase` = 1 for case-sensitive matching. Returns
+        the new question id and its slot.
         """
+        _require_list("answers", answers)
         return await _call(
             "local_mcpconnector_add_shortanswer_question",
             {
@@ -2186,9 +2225,10 @@ def _register_write_tools() -> None:
 
         `answers` is a list of dicts, each: {"answer": 42.0, "tolerance": 0.5,
         "fraction": 1.0, "feedback": ""} — a student response within ±tolerance
-        of answer earns that fraction of the marks (1.0 = full credit). Returns
-        the new question id and its slot.
+        of answer earns that fraction of the marks (1.0 = full credit). Give at
+        least one answer. Returns the new question id and its slot.
         """
+        _require_list("answers", answers)
         return await _call(
             "local_mcpconnector_add_numerical_question",
             {
@@ -2219,6 +2259,7 @@ def _register_write_tools() -> None:
         "answer": "Paris"} — students match each left-hand item to the right
         answer. At least two pairs. Returns the new question id and its slot.
         """
+        _require_list("pairs", pairs, 2)
         return await _call(
             "local_mcpconnector_add_matching_question",
             {
@@ -2240,6 +2281,7 @@ def _register_write_tools() -> None:
         Requires the manual enrolment method enabled on each course. Returns null
         on success.
         """
+        _require_list("enrolments", enrolments)
         return await _call("enrol_manual_enrol_users", {"enrolments": enrolments})
 
     @tool()
@@ -2250,6 +2292,7 @@ def _register_write_tools() -> None:
         The users must already be enrolled in the group's course. Returns null
         on success.
         """
+        _require_list("members", members)
         return await _call("core_group_add_group_members", {"members": members})
 
     @tool()
@@ -2301,6 +2344,7 @@ def _register_write_tools() -> None:
         `options` is a list of at least two answer strings students pick from.
         Returns the new cmid and instance id.
         """
+        _require_list("options", options, 2)
         return await _call(
             "local_mcpconnector_create_choice",
             {
@@ -2537,6 +2581,7 @@ def _register_write_tools() -> None:
         permanently removed. Pass a list of course ids. Returns Moodle's
         warnings list (empty when everything deleted cleanly).
         """
+        _require_list("courseids", courseids)
         return await _call("core_course_delete_courses", {"courseids": courseids})
 
     @tool()
@@ -2580,6 +2625,7 @@ def _register_write_tools() -> None:
 
         Uses core_user_delete_users. Pass a list of user ids.
         """
+        _require_list("userids", userids)
         return await _call("core_user_delete_users", {"userids": userids})
 
     @tool()
@@ -2640,6 +2686,7 @@ def _register_write_tools() -> None:
 
         Uses core_cohort_add_cohort_members.
         """
+        _require_list("userids", userids)
         members = [
             {
                 "cohorttype": {"type": "id", "value": str(cohortid)},
