@@ -1802,6 +1802,19 @@ async def read_lesson(course_id: int, cmid: int) -> dict:
 # WRITE TOOLS (registered only when MOODLE_ALLOW_WRITE=true).
 # --------------------------------------------------------------------------- #
 
+def _safe_backup_name(filename: Any, courseid: int) -> str:
+    """The backup filename Moodle returned, reduced to a bare file name.
+
+    It comes from the server, so any directory part (including "..") is
+    dropped and the file always lands in the current directory. Falls back
+    to course_<id>.mbz if nothing usable is left.
+    """
+    name = str(filename or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
+    if name in ("", ".", ".."):
+        return f"course_{courseid}.mbz"
+    return name
+
+
 def _register_write_tools() -> None:
     """Register write tools. Called only when writes are enabled."""
 
@@ -2857,7 +2870,8 @@ def _register_write_tools() -> None:
         The backup runs on the Moodle server and the plugin returns
         {"filename": str, "size": int, "content_base64": str}, where filename is
         like backup-moodle2-course-12-bio101-20261021-1200-nu.mbz. This tool
-        decodes it and writes it to `save_to` (default: ./course_<id>.mbz).
+        decodes it and writes it to `save_to`, or, when `save_to` is empty,
+        under that filename in the current directory.
         Content-only by default. includeusers=1 keeps enrolments and user data,
         but needs the moodle/backup:userinfo capability, which managers have and
         teachers do not by default. Backups over 100 MB are refused.
@@ -2871,7 +2885,7 @@ def _register_write_tools() -> None:
             "local_mcpconnector_backup_course",
             {"courseid": courseid, "includeusers": includeusers},
         )
-        path = save_to or f"course_{courseid}.mbz"
+        path = save_to or _safe_backup_name(result.get("filename"), courseid)
         await asyncio.to_thread(Path(path).write_bytes, _b64.b64decode(result["content_base64"]))
         return {
             "saved_to": os.path.abspath(path),
