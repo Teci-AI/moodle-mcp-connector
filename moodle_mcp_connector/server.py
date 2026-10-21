@@ -9,6 +9,7 @@ Config comes from environment variables only — the token is never logged.
     MOODLE_URL          e.g. https://moodle.example.edu
     MOODLE_TOKEN        a web service token
     MOODLE_ALLOW_WRITE  "true" to enable write tools (default: read-only)
+    MOODLE_TOOLSET      "content" for the content-focused subset (default: all)
 
 All calls hit:
     {MOODLE_URL}/webservice/rest/server.php
@@ -62,6 +63,52 @@ REST_ENDPOINT = f"{MOODLE_URL}/webservice/rest/server.php"
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 mcp = FastMCP("moodle-mcp-connector")
+
+# --------------------------------------------------------------------------- #
+# Tool sets. MOODLE_TOOLSET=content registers only the tools needed to read and
+# author course content; unset (or "all") registers everything. Write tools in
+# either set still require MOODLE_ALLOW_WRITE=true.
+# --------------------------------------------------------------------------- #
+
+_CONTENT_READ_TOOLS = {
+    "server_info", "verify_connection", "list_courses", "search_courses",
+    "get_my_courses", "get_course_content", "list_quizzes",
+    "search_course_materials", "read_activity", "read_lesson",
+}
+_CONTENT_WRITE_TOOLS = {
+    "create_page", "update_page", "create_book", "create_label", "create_url",
+    "create_quiz", "add_quiz_question", "add_truefalse_question",
+    "add_shortanswer_question", "add_essay_question", "add_numerical_question",
+    "add_matching_question", "create_section", "delete_section",
+    "update_activity", "move_activity", "delete_activity",
+}
+_TOOLSETS: dict[str, set[str] | None] = {
+    "": None,  # None = no filtering
+    "all": None,
+    "content": _CONTENT_READ_TOOLS | _CONTENT_WRITE_TOOLS,
+}
+
+TOOLSET = os.environ.get("MOODLE_TOOLSET", "").strip().lower()
+if TOOLSET not in _TOOLSETS:
+    # Fail loudly: silently falling back to every tool would expose more than
+    # the operator asked for.
+    raise SystemExit(
+        f"Unknown MOODLE_TOOLSET {TOOLSET!r}; expected 'content' or unset."
+    )
+_ENABLED_TOOLS = _TOOLSETS[TOOLSET]
+
+
+def tool():
+    """Like @mcp.tool(), but skips tools outside the active MOODLE_TOOLSET.
+
+    The function is returned unchanged either way, so tools can still call
+    each other directly (e.g. daily_briefing -> get_grades).
+    """
+    def decorator(fn):
+        if _ENABLED_TOOLS is None or fn.__name__ in _ENABLED_TOOLS:
+            mcp.tool()(fn)
+        return fn
+    return decorator
 
 
 class MoodleError(Exception):
@@ -209,7 +256,7 @@ def _validate_outline(outline: Any) -> list[str]:
 SERVER_VERSION = "0.1.0"
 
 
-@mcp.tool()
+@tool()
 async def server_info() -> dict:
     """Health check: version, write-mode, config presence, plugin availability.
 
@@ -222,6 +269,7 @@ async def server_info() -> dict:
     info: dict[str, Any] = {
         "server_version": SERVER_VERSION,
         "write_enabled": ALLOW_WRITE,
+        "toolset": TOOLSET or "all",
         "moodle_url_set": bool(MOODLE_URL),
         "moodle_token_set": bool(MOODLE_TOKEN),
     }
@@ -240,7 +288,7 @@ async def server_info() -> dict:
     return info
 
 
-@mcp.tool()
+@tool()
 async def verify_connection() -> dict:
     """Verify the token/URL work and return Moodle site info.
 
@@ -250,7 +298,7 @@ async def verify_connection() -> dict:
     return await _call("core_webservice_get_site_info")
 
 
-@mcp.tool()
+@tool()
 async def list_courses() -> list:
     """List all courses on the site the token can see.
 
@@ -259,7 +307,7 @@ async def list_courses() -> list:
     return await _call("core_course_get_courses")
 
 
-@mcp.tool()
+@tool()
 async def search_courses(field: str, value: str) -> dict:
     """Search courses by a single field.
 
@@ -269,7 +317,7 @@ async def search_courses(field: str, value: str) -> dict:
     return await _call("core_course_get_courses_by_field", {"field": field, "value": value})
 
 
-@mcp.tool()
+@tool()
 async def get_course_content(courseid: int) -> list:
     """Get the full section/activity structure of one course.
 
@@ -279,7 +327,7 @@ async def get_course_content(courseid: int) -> list:
     return await _call("core_course_get_contents", {"courseid": courseid})
 
 
-@mcp.tool()
+@tool()
 async def get_enrolled_users(courseid: int) -> list:
     """List users enrolled in a course.
 
@@ -288,7 +336,7 @@ async def get_enrolled_users(courseid: int) -> list:
     return await _call("core_enrol_get_enrolled_users", {"courseid": courseid})
 
 
-@mcp.tool()
+@tool()
 async def list_quizzes(courseids: list[int]) -> dict:
     """List quizzes in one or more courses.
 
@@ -297,7 +345,7 @@ async def list_quizzes(courseids: list[int]) -> dict:
     return await _call("mod_quiz_get_quizzes_by_courses", {"courseids": courseids})
 
 
-@mcp.tool()
+@tool()
 async def get_user_grades(courseid: int, userid: int = 0) -> dict:
     """Get grade items for a user in a course.
 
@@ -482,7 +530,7 @@ async def _find_assignment(assignid: int) -> dict | None:
 
 # --- Course & content ------------------------------------------------------ #
 
-@mcp.tool()
+@tool()
 async def get_my_courses() -> list:
     """Get all courses the current user (the token's user) is enrolled in.
 
@@ -502,7 +550,7 @@ async def get_my_courses() -> list:
     ]
 
 
-@mcp.tool()
+@tool()
 async def search_course_materials(query: str, courseid: int = 0) -> list:
     """Search across course materials by a text query.
 
@@ -522,7 +570,7 @@ async def search_course_materials(query: str, courseid: int = 0) -> list:
     return hits
 
 
-@mcp.tool()
+@tool()
 async def get_course_announcements(courseid: int = 0) -> list:
     """Get announcements from course news forums.
 
@@ -552,7 +600,7 @@ async def get_course_announcements(courseid: int = 0) -> list:
     return out
 
 
-@mcp.tool()
+@tool()
 async def get_recent_activity(since: int = 0) -> list:
     """Get recent activity across courses since a given time.
 
@@ -588,7 +636,7 @@ async def get_recent_activity(since: int = 0) -> list:
 
 # --- Assignments & deadlines ----------------------------------------------- #
 
-@mcp.tool()
+@tool()
 async def get_assignments(courseids: list[int] | None = None) -> list:
     """Get assignments for courses.
 
@@ -611,7 +659,7 @@ async def get_assignments(courseids: list[int] | None = None) -> list:
     ]
 
 
-@mcp.tool()
+@tool()
 async def get_assignment_status(assignid: int) -> dict:
     """Get submission and grading status for a specific assignment.
 
@@ -632,7 +680,7 @@ async def get_assignment_status(assignid: int) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def get_upcoming_deadlines(within_days: int = 0) -> list:
     """Get upcoming assignment deadlines across all courses, soonest first.
 
@@ -648,7 +696,7 @@ async def get_upcoming_deadlines(within_days: int = 0) -> list:
     return tasks
 
 
-@mcp.tool()
+@tool()
 async def get_overdue_assignments() -> list:
     """Get unsubmitted assignments past their due date, most overdue first.
 
@@ -664,7 +712,7 @@ async def get_overdue_assignments() -> list:
     return tasks
 
 
-@mcp.tool()
+@tool()
 async def get_actionable_tasks() -> list:
     """Get a prioritized list of tasks needing action, most urgent first.
 
@@ -684,7 +732,7 @@ async def get_actionable_tasks() -> list:
     return tasks
 
 
-@mcp.tool()
+@tool()
 async def analyze_assignment(assignid: int) -> dict:
     """Analyze an assignment: status, requirements, materials, progress, deadline.
 
@@ -719,7 +767,7 @@ async def analyze_assignment(assignid: int) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def extract_assignment_requirements(assignid: int) -> dict:
     """Extract the source text of an assignment for requirement analysis.
 
@@ -742,7 +790,7 @@ async def extract_assignment_requirements(assignid: int) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def find_relevant_materials(assignid: int) -> list:
     """Find course materials relevant to an assignment, ranked by relevance.
 
@@ -765,7 +813,7 @@ async def find_relevant_materials(assignid: int) -> list:
     return scored
 
 
-@mcp.tool()
+@tool()
 async def decompose_task(assignid: int) -> dict:
     """Break an assignment into subtasks with effort, dependencies, timeline.
 
@@ -787,7 +835,7 @@ async def decompose_task(assignid: int) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def create_implementation_plan(assignid: int) -> dict:
     """Build a step-by-step plan with timeline, milestones, and risks.
 
@@ -817,7 +865,7 @@ async def create_implementation_plan(assignid: int) -> dict:
 
 # --- Grades & progress ----------------------------------------------------- #
 
-@mcp.tool()
+@tool()
 async def get_grades(courseid: int = 0) -> Any:
     """Get a grade overview for all courses, or detailed grades for one course.
 
@@ -830,7 +878,7 @@ async def get_grades(courseid: int = 0) -> Any:
     return await _call("gradereport_overview_get_course_grades")
 
 
-@mcp.tool()
+@tool()
 async def get_course_progress(courseid: int = 0) -> Any:
     """Get progress/completion for one course or all courses.
 
@@ -844,7 +892,7 @@ async def get_course_progress(courseid: int = 0) -> Any:
     return list(await asyncio.gather(*[_course_progress(cid, uid) for cid in course_ids]))
 
 
-@mcp.tool()
+@tool()
 async def get_course_health(courseid: int) -> dict:
     """Health check for a course: progress, grade, unsubmitted and overdue counts.
 
@@ -873,7 +921,7 @@ async def get_course_health(courseid: int) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def get_study_load() -> list:
     """Analyze assignment distribution by week to spot heavy weeks.
 
@@ -893,7 +941,7 @@ async def get_study_load() -> list:
 
 # --- Aggregated overviews -------------------------------------------------- #
 
-@mcp.tool()
+@tool()
 async def get_upcoming_events(limit: int = 20) -> list:
     """Get upcoming calendar events from Moodle, soonest first.
 
@@ -916,7 +964,7 @@ async def get_upcoming_events(limit: int = 20) -> list:
     ]
 
 
-@mcp.tool()
+@tool()
 async def semester_dashboard() -> dict:
     """Combined overview of courses, upcoming deadlines, and grades.
 
@@ -934,7 +982,7 @@ async def semester_dashboard() -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def daily_briefing() -> dict:
     """Daily summary: overdue count, today's deadlines, recent grades, events, tasks.
 
@@ -958,7 +1006,7 @@ async def daily_briefing() -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def weekly_review() -> dict:
     """Weekly summary: submitted/graded counts, deadlines, overdue count, progress.
 
@@ -982,7 +1030,7 @@ async def weekly_review() -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def ask_moodle(question: str) -> dict:
     """Ask a natural-language question and have it routed to the right data.
 
@@ -1014,7 +1062,7 @@ async def ask_moodle(question: str) -> dict:
 
 # --- Quiz results ----------------------------------------------------------- #
 
-@mcp.tool()
+@tool()
 async def get_quiz_results(quizid: int, userid: int = 0) -> dict:
     """See how a user did on a quiz: all attempts plus their best grade.
 
@@ -1050,7 +1098,7 @@ async def get_quiz_results(quizid: int, userid: int = 0) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def get_quiz_attempt_review(attemptid: int) -> dict:
     """Review a finished quiz attempt question by question.
 
@@ -1078,7 +1126,7 @@ async def get_quiz_attempt_review(attemptid: int) -> dict:
     }
 
 
-@mcp.tool()
+@tool()
 async def get_quiz_report(quizid: int, courseid: int, include_questions: bool = True) -> dict:
     """Whole-class report for a quiz: distribution, averages, who hasn't sat it.
 
@@ -1180,7 +1228,7 @@ async def get_quiz_report(quizid: int, courseid: int, include_questions: bool = 
 
 # --- Completion tracking ---------------------------------------------------- #
 
-@mcp.tool()
+@tool()
 async def get_activity_completion(courseid: int, userid: int = 0) -> list:
     """See which activities a user has completed in a course.
 
@@ -1207,7 +1255,7 @@ async def get_activity_completion(courseid: int, userid: int = 0) -> list:
     ]
 
 
-@mcp.tool()
+@tool()
 async def get_course_completion_status(courseid: int, userid: int = 0) -> dict:
     """See whether a user has completed a whole course and which criteria remain.
 
@@ -1237,7 +1285,7 @@ async def get_course_completion_status(courseid: int, userid: int = 0) -> dict:
 
 # --- Notifications ---------------------------------------------------------- #
 
-@mcp.tool()
+@tool()
 async def get_notifications(limit: int = 20, unread_only: bool = False) -> dict:
     """Read your Moodle notifications (new grades, forum posts, due dates...).
 
@@ -1278,7 +1326,7 @@ async def get_notifications(limit: int = 20, unread_only: bool = False) -> dict:
 
 # --- Competencies & learning plans ------------------------------------------ #
 
-@mcp.tool()
+@tool()
 async def list_course_competencies(courseid: int) -> list:
     """List the competencies attached to a course.
 
@@ -1299,7 +1347,7 @@ async def list_course_competencies(courseid: int) -> list:
     ]
 
 
-@mcp.tool()
+@tool()
 async def get_learning_plans(userid: int = 0) -> list:
     """List a user's learning plans (competency-based development plans).
 
@@ -1451,7 +1499,7 @@ def _book_chapters(module: dict) -> list[dict]:
     return ordered
 
 
-@mcp.tool()
+@tool()
 async def read_activity(course_id: int, cmid: int) -> dict:
     """Read the full text of a Page, Book (all chapters) or Label.
 
@@ -1514,7 +1562,7 @@ async def read_activity(course_id: int, cmid: int) -> dict:
     )
 
 
-@mcp.tool()
+@tool()
 async def read_lesson(course_id: int, cmid: int) -> dict:
     """Read the text of every page in a Lesson activity, in lesson order.
 
@@ -1572,7 +1620,7 @@ def _register_write_tools() -> None:
 
     # --- Core writes ------------------------------------------------------- #
 
-    @mcp.tool()
+    @tool()
     async def create_course(
         fullname: str,
         shortname: str,
@@ -1596,7 +1644,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_course_create_courses", {"courses": [course]})
 
-    @mcp.tool()
+    @tool()
     async def create_category(name: str, parent: int = 0, description: str = "") -> list:
         """⚠️ WRITES LIVE DATA. Create a course category.
 
@@ -1610,7 +1658,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_course_create_categories", {"categories": [category]})
 
-    @mcp.tool()
+    @tool()
     async def create_user(
         username: str,
         password: str,
@@ -1634,7 +1682,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_user_create_users", {"users": [user]})
 
-    @mcp.tool()
+    @tool()
     async def enrol_user(userid: int, courseid: int, roleid: int = 5) -> None:
         """⚠️ WRITES LIVE DATA. Enrol a user in a course (manual enrolment).
 
@@ -1645,7 +1693,7 @@ def _register_write_tools() -> None:
         enrolment = {"userid": userid, "courseid": courseid, "roleid": roleid}
         return await _call("enrol_manual_enrol_users", {"enrolments": [enrolment]})
 
-    @mcp.tool()
+    @tool()
     async def create_group(courseid: int, name: str, description: str = "") -> list:
         """⚠️ WRITES LIVE DATA. Create a group inside a course.
 
@@ -1659,7 +1707,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_group_create_groups", {"groups": [group]})
 
-    @mcp.tool()
+    @tool()
     async def upload_file(
         filename: str,
         filecontent_base64: str,
@@ -1689,7 +1737,7 @@ def _register_write_tools() -> None:
 
     # --- Plugin writes (local_mcpbridge) ----------------------------------- #
 
-    @mcp.tool()
+    @tool()
     async def create_page(
         courseid: int,
         name: str,
@@ -1715,7 +1763,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_book(
         courseid: int,
         name: str,
@@ -1743,7 +1791,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_label(
         courseid: int,
         content: str,
@@ -1766,7 +1814,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_url(
         courseid: int,
         name: str,
@@ -1793,7 +1841,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_quiz(
         courseid: int,
         name: str,
@@ -1828,7 +1876,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def add_quiz_question(
         quizcmid: int,
         name: str,
@@ -1858,7 +1906,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def add_truefalse_question(
         quizcmid: int,
         name: str,
@@ -1883,7 +1931,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def add_shortanswer_question(
         quizcmid: int,
         name: str,
@@ -1910,7 +1958,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def add_essay_question(
         quizcmid: int,
         name: str,
@@ -1943,7 +1991,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def add_numerical_question(
         quizcmid: int,
         name: str,
@@ -1970,7 +2018,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def add_matching_question(
         quizcmid: int,
         name: str,
@@ -1998,7 +2046,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def enrol_users(enrolments: list[dict]) -> None:
         """⚠️ WRITES LIVE DATA. Enrol many users at once (bulk).
 
@@ -2009,7 +2057,7 @@ def _register_write_tools() -> None:
         """
         return await _call("enrol_manual_enrol_users", {"enrolments": enrolments})
 
-    @mcp.tool()
+    @tool()
     async def add_group_members(members: list[dict]) -> None:
         """⚠️ WRITES LIVE DATA. Add users to groups.
 
@@ -2019,7 +2067,7 @@ def _register_write_tools() -> None:
         """
         return await _call("core_group_add_group_members", {"members": members})
 
-    @mcp.tool()
+    @tool()
     async def create_forum(
         courseid: int,
         name: str,
@@ -2045,7 +2093,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_choice(
         courseid: int,
         name: str,
@@ -2073,7 +2121,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_assignment(
         courseid: int,
         name: str,
@@ -2102,7 +2150,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def create_section(
         courseid: int,
         name: str,
@@ -2124,7 +2172,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def update_activity(cmid: int, name: str = "", visible: int = -1) -> dict:
         """⚠️ WRITES LIVE DATA. Rename and/or show/hide an existing activity.
 
@@ -2137,7 +2185,7 @@ def _register_write_tools() -> None:
             {"cmid": cmid, "name": name, "visible": visible},
         )
 
-    @mcp.tool()
+    @tool()
     async def update_page(cmid: int, content: str, intro: str = "") -> dict:
         """⚠️ WRITES LIVE DATA. Replace the content of an existing Page activity.
 
@@ -2150,7 +2198,7 @@ def _register_write_tools() -> None:
             {"cmid": cmid, "content": content, "intro": intro},
         )
 
-    @mcp.tool()
+    @tool()
     async def move_activity(cmid: int, section: int) -> dict:
         """⚠️ WRITES LIVE DATA. Move an activity to a different course section.
 
@@ -2163,7 +2211,7 @@ def _register_write_tools() -> None:
             {"cmid": cmid, "section": section},
         )
 
-    @mcp.tool()
+    @tool()
     async def update_course(
         courseid: int,
         fullname: str = "",
@@ -2189,7 +2237,7 @@ def _register_write_tools() -> None:
             course["visible"] = visible
         return await _call("core_course_update_courses", {"courses": [course]})
 
-    @mcp.tool()
+    @tool()
     async def delete_activity(cmid: int) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete an activity from a course.
 
@@ -2199,7 +2247,7 @@ def _register_write_tools() -> None:
         """
         return await _call("local_mcpbridge_delete_activity", {"cmid": cmid})
 
-    @mcp.tool()
+    @tool()
     async def grade_assignment(
         assignmentid: int,
         userid: int,
@@ -2240,7 +2288,7 @@ def _register_write_tools() -> None:
             "feedback": feedback or None,
         }
 
-    @mcp.tool()
+    @tool()
     async def unenrol_user(userid: int, courseid: int) -> None:
         """⚠️ WRITES LIVE DATA. Remove a user's manual enrolment from a course.
 
@@ -2253,7 +2301,7 @@ def _register_write_tools() -> None:
             {"enrolments": [{"userid": userid, "courseid": courseid}]},
         )
 
-    @mcp.tool()
+    @tool()
     async def delete_section(courseid: int, sectionnum: int) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete a course section.
 
@@ -2268,7 +2316,7 @@ def _register_write_tools() -> None:
 
     # --- Extended core writes (Moodle core web services) ------------------- #
 
-    @mcp.tool()
+    @tool()
     async def delete_courses(courseids: list[int]) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete one or more courses.
 
@@ -2278,7 +2326,7 @@ def _register_write_tools() -> None:
         """
         return await _call("core_course_delete_courses", {"courseids": courseids})
 
-    @mcp.tool()
+    @tool()
     async def delete_category(categoryid: int, recursive: int = 0) -> None:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete a course category.
 
@@ -2288,7 +2336,7 @@ def _register_write_tools() -> None:
         cat = {"id": categoryid, "recursive": recursive}
         return await _call("core_course_delete_categories", {"categories": [cat]})
 
-    @mcp.tool()
+    @tool()
     async def update_user(
         userid: int,
         firstname: str = "",
@@ -2313,7 +2361,7 @@ def _register_write_tools() -> None:
             user["suspended"] = suspended
         return await _call("core_user_update_users", {"users": [user]})
 
-    @mcp.tool()
+    @tool()
     async def delete_users(userids: list[int]) -> None:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete user accounts.
 
@@ -2321,7 +2369,7 @@ def _register_write_tools() -> None:
         """
         return await _call("core_user_delete_users", {"userids": userids})
 
-    @mcp.tool()
+    @tool()
     async def assign_role(
         roleid: int, userid: int, contextlevel: str = "course", instanceid: int = 0
     ) -> None:
@@ -2339,7 +2387,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_role_assign_roles", {"assignments": [a]})
 
-    @mcp.tool()
+    @tool()
     async def unassign_role(
         roleid: int, userid: int, contextlevel: str = "course", instanceid: int = 0
     ) -> None:
@@ -2355,7 +2403,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_role_unassign_roles", {"unassignments": [a]})
 
-    @mcp.tool()
+    @tool()
     async def create_cohort(
         name: str, idnumber: str, categoryid: int = 0, description: str = ""
     ) -> list:
@@ -2373,7 +2421,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_cohort_create_cohorts", {"cohorts": [cohort]})
 
-    @mcp.tool()
+    @tool()
     async def add_cohort_members(cohortid: int, userids: list[int]) -> dict:
         """⚠️ WRITES LIVE DATA. Add users to a cohort.
 
@@ -2388,7 +2436,7 @@ def _register_write_tools() -> None:
         ]
         return await _call("core_cohort_add_cohort_members", {"members": members})
 
-    @mcp.tool()
+    @tool()
     async def start_forum_discussion(
         forumid: int, subject: str, message: str
     ) -> dict:
@@ -2402,7 +2450,7 @@ def _register_write_tools() -> None:
             {"forumid": forumid, "subject": subject, "message": message},
         )
 
-    @mcp.tool()
+    @tool()
     async def reply_forum_post(postid: int, subject: str, message: str) -> dict:
         """⚠️ WRITES LIVE DATA. Reply to a forum post.
 
@@ -2414,7 +2462,7 @@ def _register_write_tools() -> None:
             {"postid": postid, "subject": subject, "message": message},
         )
 
-    @mcp.tool()
+    @tool()
     async def send_message(touserid: int, text: str) -> list:
         """⚠️ WRITES LIVE DATA. Send a private message to a user.
 
@@ -2426,7 +2474,7 @@ def _register_write_tools() -> None:
             "core_message_send_instant_messages", {"messages": [msg]}
         )
 
-    @mcp.tool()
+    @tool()
     async def import_course(importfrom: int, importto: int, deletecontent: int = 0) -> None:
         """⚠️ WRITES LIVE DATA. Import content from one course into another.
 
@@ -2438,7 +2486,7 @@ def _register_write_tools() -> None:
             {"importfrom": importfrom, "importto": importto, "deletecontent": deletecontent},
         )
 
-    @mcp.tool()
+    @tool()
     async def download_file(fileurl: str) -> dict:
         """Download a file from the Moodle site by its pluginfile URL.
 
@@ -2459,7 +2507,7 @@ def _register_write_tools() -> None:
             "content_base64": _b64.b64encode(content).decode("ascii"),
         }
 
-    @mcp.tool()
+    @tool()
     async def mark_activity_complete(cmid: int, completed: bool = True) -> dict:
         """⚠️ WRITES LIVE DATA. Tick (or untick) your own manual completion box.
 
@@ -2473,7 +2521,7 @@ def _register_write_tools() -> None:
         )
         return {"cmid": cmid, "completed": completed}
 
-    @mcp.tool()
+    @tool()
     async def override_activity_completion(
         cmid: int, userid: int, newstate: int = 1
     ) -> dict:
@@ -2487,7 +2535,7 @@ def _register_write_tools() -> None:
             {"cmid": cmid, "userid": userid, "newstate": newstate},
         )
 
-    @mcp.tool()
+    @tool()
     async def backup_course(
         courseid: int, save_to: str = "", includeusers: int = 0
     ) -> dict:
@@ -2513,7 +2561,7 @@ def _register_write_tools() -> None:
             "filename": result["filename"],
         }
 
-    @mcp.tool()
+    @tool()
     async def restore_course(
         filepath: str,
         categoryid: int = 1,
@@ -2541,7 +2589,7 @@ def _register_write_tools() -> None:
             },
         )
 
-    @mcp.tool()
+    @tool()
     async def build_course(outline: dict, rollback: bool = False) -> dict:
         """⚠️ WRITES LIVE DATA. Build a whole course from one JSON outline.
 
