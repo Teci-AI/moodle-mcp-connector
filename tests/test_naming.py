@@ -33,4 +33,4 @@ def test_plugin_calls_use_new_prefix():
 
     source = Path(server.__file__).read_text(encoding="utf-8")
     assert '"local_mcpconnector_create_page"' in source
-    assert 'startswith("local_mcpconnector_")' in source
+    assert server.PLUGIN_PREFIX == "local_mcpconnector_"

@@ -255,6 +255,40 @@ def _validate_outline(outline: Any) -> list[str]:
 
 SERVER_VERSION = "0.1.0"
 
+# Oldest local_mcpconnector plugin version (its version.php $plugin->version)
+# whose functions and return values this server is written against.
+MIN_PLUGIN_VERSION = 2026102110
+
+PLUGIN_PREFIX = "local_mcpconnector_"
+
+
+async def _plugin_status(funcs: set) -> dict:
+    """Report the plugin's version and whether it is new enough.
+
+    Never raises: any failure is reported as plugin_compatible False with the
+    error, so server_info stays usable as a diagnostic.
+    """
+    status: dict[str, Any] = {
+        "plugin_installed": any(f and f.startswith(PLUGIN_PREFIX) for f in funcs),
+        "plugin_version": None,
+        "plugin_release": None,
+        "plugin_compatible": False,
+        "plugin_min_version": MIN_PLUGIN_VERSION,
+    }
+    if not status["plugin_installed"]:
+        return status
+    try:
+        about = await _call(PLUGIN_PREFIX + "get_info")
+        version = int(about["version"])
+        status.update({
+            "plugin_version": version,
+            "plugin_release": about.get("release"),
+            "plugin_compatible": version >= MIN_PLUGIN_VERSION,
+        })
+    except Exception as exc:  # noqa: BLE001 - diagnostics must never raise
+        status["plugin_error"] = f"{type(exc).__name__}: {exc}"
+    return status
+
 
 @tool()
 async def server_info() -> dict:
@@ -264,7 +298,11 @@ async def server_info() -> dict:
     you rely on it: reports this server's version, whether write tools are
     enabled, whether URL/token are configured, and (via a live site-info call)
     whether the local_mcpconnector plugin's functions are present on the Moodle
-    site. Never returns the token itself.
+    site. When they are, it also reports the plugin's version and release
+    (from local_mcpconnector_get_info) and plugin_compatible: whether that
+    version is at least plugin_min_version. If the version cannot be read,
+    plugin_compatible is false and plugin_error says why. Never returns the
+    token itself.
     """
     info: dict[str, Any] = {
         "server_version": SERVER_VERSION,
@@ -280,11 +318,12 @@ async def server_info() -> dict:
             "connected": True,
             "sitename": site.get("sitename"),
             "moodle_release": site.get("release"),
-            "plugin_installed": any(f.startswith("local_mcpconnector_") for f in funcs),
             "function_count": len(funcs),
         })
     except MoodleError as exc:
         info.update({"connected": False, "error": str(exc)})
+        return info
+    info.update(await _plugin_status(funcs))
     return info
 
 

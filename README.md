@@ -148,7 +148,7 @@ cache it. When an optional `courseid`/`courseids` argument is omitted, they use
 
 | Tool | Content | Moodle web service functions |
 |---|:---:|---|
-| `server_info` | ✓ | `core_webservice_get_site_info` |
+| `server_info` | ✓ | `core_webservice_get_site_info`; when plugin functions are present also `local_mcpconnector_get_info` |
 | `verify_connection` | ✓ | `core_webservice_get_site_info` |
 | `list_courses` | ✓ | `core_course_get_courses` |
 | `search_courses` | ✓ | `core_course_get_courses_by_field` |
