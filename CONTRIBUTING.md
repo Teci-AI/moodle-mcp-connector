@@ -9,10 +9,18 @@ adding a new tool.
 python -m venv .venv
 # Windows:      .venv\Scripts\activate
 # macOS/Linux:  source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-Put a test site's details in a `.env` file in the repository root (it is
+Run the tests with:
+
+```bash
+pytest
+```
+
+They need no Moodle site: `tests/conftest.py` sets a fake configuration and
+the tests replace `_call` or the HTTP transport with fakes. To check against a
+real site, put a test site's details in a `.env` file in the repository root (it is
 ignored by git). Use a test site and a test account, never production
 credentials:
 

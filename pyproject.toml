@@ -22,8 +22,14 @@ classifiers = [
     "Topic :: Education",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.scripts]
 moodle-mcp-connector = "moodle_mcp_connector.server:main"
 
 [tool.setuptools.packages.find]
 include = ["moodle_mcp_connector*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -263,7 +263,7 @@ async def server_info() -> dict:
     Read-only and cheap. Confirms the MCP server is wired up correctly before
     you rely on it: reports this server's version, whether write tools are
     enabled, whether URL/token are configured, and (via a live site-info call)
-    whether the local_mcpbridge plugin's functions are present on the Moodle
+    whether the local_mcpconnector plugin's functions are present on the Moodle
     site. Never returns the token itself.
     """
     info: dict[str, Any] = {
@@ -280,7 +280,7 @@ async def server_info() -> dict:
             "connected": True,
             "sitename": site.get("sitename"),
             "moodle_release": site.get("release"),
-            "plugin_installed": any(f.startswith("local_mcpbridge_") for f in funcs),
+            "plugin_installed": any(f.startswith("local_mcpconnector_") for f in funcs),
             "function_count": len(funcs),
         })
     except MoodleError as exc:
@@ -1735,7 +1735,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_files_upload", params)
 
-    # --- Plugin writes (local_mcpbridge) ----------------------------------- #
+    # --- Plugin writes (local_mcpconnector) ----------------------------------- #
 
     @tool()
     async def create_page(
@@ -1748,11 +1748,11 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Page activity (HTML) in a course.
 
-        Requires the local_mcpbridge plugin on the Moodle site. `content` is the
+        Requires the local_mcpconnector plugin on the Moodle site. `content` is the
         page body (HTML). Returns the new cmid and page instance id.
         """
         return await _call(
-            "local_mcpbridge_create_page",
+            "local_mcpconnector_create_page",
             {
                 "courseid": courseid,
                 "section": section,
@@ -1775,11 +1775,11 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Book activity plus its first chapter.
 
-        Requires the local_mcpbridge plugin. Returns cmid, book instance id, and
+        Requires the local_mcpconnector plugin. Returns cmid, book instance id, and
         the first chapter id.
         """
         return await _call(
-            "local_mcpbridge_create_book",
+            "local_mcpconnector_create_book",
             {
                 "courseid": courseid,
                 "section": section,
@@ -1801,10 +1801,10 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Label (inline text/HTML) in a course.
 
-        Requires the local_mcpbridge plugin. Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. Returns the new cmid and instance id.
         """
         return await _call(
-            "local_mcpbridge_create_label",
+            "local_mcpconnector_create_label",
             {
                 "courseid": courseid,
                 "section": section,
@@ -1826,10 +1826,10 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a URL resource in a course.
 
-        Requires the local_mcpbridge plugin. Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. Returns the new cmid and instance id.
         """
         return await _call(
-            "local_mcpbridge_create_url",
+            "local_mcpconnector_create_url",
             {
                 "courseid": courseid,
                 "section": section,
@@ -1856,12 +1856,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an empty Quiz activity (settings only).
 
-        Requires the local_mcpbridge plugin. This creates the quiz container;
+        Requires the local_mcpconnector plugin. This creates the quiz container;
         adding questions is a separate, heavier operation (not supported here).
         Returns the new cmid and quiz instance id.
         """
         return await _call(
-            "local_mcpbridge_create_quiz",
+            "local_mcpconnector_create_quiz",
             {
                 "courseid": courseid,
                 "section": section,
@@ -1887,7 +1887,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a multiple-choice question to an existing quiz.
 
-        Requires the local_mcpbridge plugin. `quizcmid` is the quiz's course
+        Requires the local_mcpconnector plugin. `quizcmid` is the quiz's course
         module id (the cmid returned by create_quiz). `answers` is a list of
         dicts, each: {"text": "...", "fraction": 1.0, "feedback": ""} where
         fraction is the grade weight (1.0 = fully correct, 0 = wrong, negatives
@@ -1895,7 +1895,7 @@ def _register_write_tools() -> None:
         correct answer. Returns the new question id and its slot in the quiz.
         """
         return await _call(
-            "local_mcpbridge_add_quiz_question",
+            "local_mcpconnector_add_quiz_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -1916,12 +1916,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a true/false question to a quiz.
 
-        Requires the local_mcpbridge plugin. `quizcmid` is the quiz's course
+        Requires the local_mcpconnector plugin. `quizcmid` is the quiz's course
         module id. `correctanswer` = 1 for true, 0 for false. Returns the new
         question id and its slot.
         """
         return await _call(
-            "local_mcpbridge_add_truefalse_question",
+            "local_mcpconnector_add_truefalse_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -1942,12 +1942,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a short-answer question to a quiz.
 
-        Requires the local_mcpbridge plugin. `answers` is a list of accepted
+        Requires the local_mcpconnector plugin. `answers` is a list of accepted
         answer strings (all treated as fully correct). `usecase` = 1 for
         case-sensitive matching. Returns the new question id and its slot.
         """
         return await _call(
-            "local_mcpbridge_add_shortanswer_question",
+            "local_mcpconnector_add_shortanswer_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -1971,14 +1971,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add an essay (free-text) question to a quiz.
 
-        Requires the local_mcpbridge plugin. Essay questions are graded
+        Requires the local_mcpconnector plugin. Essay questions are graded
         manually. `graderinfo` is private guidance for whoever marks it;
         `responsetemplate` pre-fills the student's answer box; `attachments`
         allows file uploads (0 = none, 1-3 = that many, -1 = unlimited).
         Returns the new question id and its slot.
         """
         return await _call(
-            "local_mcpbridge_add_essay_question",
+            "local_mcpconnector_add_essay_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2001,14 +2001,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a numerical question to a quiz.
 
-        Requires the local_mcpbridge plugin. `answers` is a list of dicts,
+        Requires the local_mcpconnector plugin. `answers` is a list of dicts,
         each: {"answer": 42.0, "tolerance": 0.5, "fraction": 1.0,
         "feedback": ""} — a student response within ±tolerance of answer
         earns that fraction of the marks (1.0 = full credit). Returns the new
         question id and its slot.
         """
         return await _call(
-            "local_mcpbridge_add_numerical_question",
+            "local_mcpconnector_add_numerical_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2029,13 +2029,13 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a matching question to a quiz.
 
-        Requires the local_mcpbridge plugin. `pairs` is a list of dicts, each:
+        Requires the local_mcpconnector plugin. `pairs` is a list of dicts, each:
         {"question": "Capital of France", "answer": "Paris"} — students match
         each left-hand item to the right answer. At least two pairs. Returns
         the new question id and its slot.
         """
         return await _call(
-            "local_mcpbridge_add_matching_question",
+            "local_mcpconnector_add_matching_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2078,11 +2078,11 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Forum activity in a course.
 
-        Requires the local_mcpbridge plugin. `type` is one of: general,
+        Requires the local_mcpconnector plugin. `type` is one of: general,
         eachuser, single, qanda, blog. Returns the new cmid and instance id.
         """
         return await _call(
-            "local_mcpbridge_create_forum",
+            "local_mcpconnector_create_forum",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2105,11 +2105,11 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Choice (poll) activity in a course.
 
-        Requires the local_mcpbridge plugin. `options` is a list of at least two
+        Requires the local_mcpconnector plugin. `options` is a list of at least two
         answer strings students pick from. Returns the new cmid and instance id.
         """
         return await _call(
-            "local_mcpbridge_create_choice",
+            "local_mcpconnector_create_choice",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2133,12 +2133,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an Assignment activity in a course.
 
-        Requires the local_mcpbridge plugin. Enables online-text and file
+        Requires the local_mcpconnector plugin. Enables online-text and file
         submissions with feedback comments. `duedate` is a unix timestamp
         (0 = no due date). Returns the new cmid and instance id.
         """
         return await _call(
-            "local_mcpbridge_create_assignment",
+            "local_mcpconnector_create_assignment",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2159,11 +2159,11 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a new section (topic) in a course.
 
-        Requires the local_mcpbridge plugin. `position` 0 appends to the end.
+        Requires the local_mcpconnector plugin. `position` 0 appends to the end.
         Returns the new section id and its number within the course.
         """
         return await _call(
-            "local_mcpbridge_create_section",
+            "local_mcpconnector_create_section",
             {
                 "courseid": courseid,
                 "name": name,
@@ -2176,12 +2176,12 @@ def _register_write_tools() -> None:
     async def update_activity(cmid: int, name: str = "", visible: int = -1) -> dict:
         """⚠️ WRITES LIVE DATA. Rename and/or show/hide an existing activity.
 
-        Requires the local_mcpbridge plugin. `cmid` is the activity's course
+        Requires the local_mcpconnector plugin. `cmid` is the activity's course
         module id. Leave `name` empty to keep it; `visible` = 1 show, 0 hide,
         -1 leave unchanged. Returns what was changed.
         """
         return await _call(
-            "local_mcpbridge_update_activity",
+            "local_mcpconnector_update_activity",
             {"cmid": cmid, "name": name, "visible": visible},
         )
 
@@ -2189,12 +2189,12 @@ def _register_write_tools() -> None:
     async def update_page(cmid: int, content: str, intro: str = "") -> dict:
         """⚠️ WRITES LIVE DATA. Replace the content of an existing Page activity.
 
-        Requires the local_mcpbridge plugin. `cmid` is the page's course module
+        Requires the local_mcpconnector plugin. `cmid` is the page's course module
         id; `content` is the new HTML body. Leave `intro` empty to keep the
         current description. Returns the cmid and a success flag.
         """
         return await _call(
-            "local_mcpbridge_update_page",
+            "local_mcpconnector_update_page",
             {"cmid": cmid, "content": content, "intro": intro},
         )
 
@@ -2202,12 +2202,12 @@ def _register_write_tools() -> None:
     async def move_activity(cmid: int, section: int) -> dict:
         """⚠️ WRITES LIVE DATA. Move an activity to a different course section.
 
-        Requires the local_mcpbridge plugin. `cmid` is the activity's course
+        Requires the local_mcpconnector plugin. `cmid` is the activity's course
         module id; `section` is the target section number. Returns the cmid and
         the section it now lives in.
         """
         return await _call(
-            "local_mcpbridge_move_activity",
+            "local_mcpconnector_move_activity",
             {"cmid": cmid, "section": section},
         )
 
@@ -2241,11 +2241,11 @@ def _register_write_tools() -> None:
     async def delete_activity(cmid: int) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete an activity from a course.
 
-        Requires the local_mcpbridge plugin. `cmid` is the activity's course
+        Requires the local_mcpconnector plugin. `cmid` is the activity's course
         module id. This permanently removes the activity and its data. Returns
         the deleted cmid and a success flag.
         """
-        return await _call("local_mcpbridge_delete_activity", {"cmid": cmid})
+        return await _call("local_mcpconnector_delete_activity", {"cmid": cmid})
 
     @tool()
     async def grade_assignment(
@@ -2305,12 +2305,12 @@ def _register_write_tools() -> None:
     async def delete_section(courseid: int, sectionnum: int) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete a course section.
 
-        Requires the local_mcpbridge plugin. `sectionnum` is the section number
+        Requires the local_mcpconnector plugin. `sectionnum` is the section number
         (1 or higher — the general section 0 cannot be deleted). This removes the
         section AND every activity inside it. Returns a success flag.
         """
         return await _call(
-            "local_mcpbridge_delete_section",
+            "local_mcpconnector_delete_section",
             {"courseid": courseid, "sectionnum": sectionnum},
         )
 
@@ -2541,7 +2541,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """Back a whole course up to a .mbz file on the local machine.
 
-        Requires the local_mcpbridge plugin. The backup runs on the Moodle
+        Requires the local_mcpconnector plugin. The backup runs on the Moodle
         server, is transferred base64-encoded, and is written to `save_to`
         (default: ./course_<id>.mbz). Content-only by default; pass
         includeusers=1 to keep enrolments and user data. Courses over 100MB
@@ -2550,7 +2550,7 @@ def _register_write_tools() -> None:
         import base64 as _b64
 
         result = await _call(
-            "local_mcpbridge_backup_course",
+            "local_mcpconnector_backup_course",
             {"courseid": courseid, "includeusers": includeusers},
         )
         path = save_to or f"course_{courseid}.mbz"
@@ -2570,7 +2570,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Restore a .mbz backup file into a NEW course.
 
-        Requires the local_mcpbridge plugin. Reads the local `filepath`
+        Requires the local_mcpconnector plugin. Reads the local `filepath`
         (created by backup_course, or any Moodle .mbz), uploads it and
         restores it as a brand-new course in `categoryid`. `fullname` and
         `shortname` override the names stored in the backup. Returns the new
@@ -2580,7 +2580,7 @@ def _register_write_tools() -> None:
 
         content = await asyncio.to_thread(Path(filepath).read_bytes)
         return await _call(
-            "local_mcpbridge_restore_course",
+            "local_mcpconnector_restore_course",
             {
                 "content_base64": _b64.b64encode(content).decode("ascii"),
                 "categoryid": categoryid,
@@ -2670,7 +2670,7 @@ def _register_write_tools() -> None:
             name = act.get("name", "")
             if atype == "page":
                 r = await _call(
-                    "local_mcpbridge_create_page",
+                    "local_mcpconnector_create_page",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -2681,7 +2681,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "label":
                 r = await _call(
-                    "local_mcpbridge_create_label",
+                    "local_mcpconnector_create_label",
                     {
                         "courseid": courseid,
                         "content": act.get("text", act.get("content", "")),
@@ -2690,7 +2690,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "url":
                 r = await _call(
-                    "local_mcpbridge_create_url",
+                    "local_mcpconnector_create_url",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -2701,7 +2701,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "forum":
                 r = await _call(
-                    "local_mcpbridge_create_forum",
+                    "local_mcpconnector_create_forum",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -2712,7 +2712,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "assignment":
                 r = await _call(
-                    "local_mcpbridge_create_assignment",
+                    "local_mcpconnector_create_assignment",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -2724,7 +2724,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "choice":
                 r = await _call(
-                    "local_mcpbridge_create_choice",
+                    "local_mcpconnector_create_choice",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -2735,7 +2735,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "quiz":
                 r = await _call(
-                    "local_mcpbridge_create_quiz",
+                    "local_mcpconnector_create_quiz",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -2760,34 +2760,34 @@ def _register_write_tools() -> None:
             }
             if qtype == "multichoice":
                 await _call(
-                    "local_mcpbridge_add_quiz_question",
+                    "local_mcpconnector_add_quiz_question",
                     {**common, "answers": q.get("answers", []),
                      "single": q.get("single", 1)},
                 )
             elif qtype == "truefalse":
                 await _call(
-                    "local_mcpbridge_add_truefalse_question",
+                    "local_mcpconnector_add_truefalse_question",
                     {**common, "correctanswer": q.get("correct", 1)},
                 )
             elif qtype == "shortanswer":
                 await _call(
-                    "local_mcpbridge_add_shortanswer_question",
+                    "local_mcpconnector_add_shortanswer_question",
                     {**common, "answers": q.get("answers", []),
                      "usecase": q.get("usecase", 0)},
                 )
             elif qtype == "essay":
                 await _call(
-                    "local_mcpbridge_add_essay_question",
+                    "local_mcpconnector_add_essay_question",
                     {**common, "graderinfo": q.get("graderinfo", "")},
                 )
             elif qtype == "numerical":
                 await _call(
-                    "local_mcpbridge_add_numerical_question",
+                    "local_mcpconnector_add_numerical_question",
                     {**common, "answers": q.get("answers", [])},
                 )
             elif qtype == "matching":
                 await _call(
-                    "local_mcpbridge_add_matching_question",
+                    "local_mcpconnector_add_matching_question",
                     {**common, "pairs": q.get("pairs", [])},
                 )
             else:
@@ -2796,7 +2796,7 @@ def _register_write_tools() -> None:
         async def do_build() -> None:
             for i, sec in enumerate(outline.get("sections", []), start=1):
                 r = await _call(
-                    "local_mcpbridge_create_section",
+                    "local_mcpconnector_create_section",
                     {
                         "courseid": courseid,
                         "name": sec.get("name", f"Section {i}"),

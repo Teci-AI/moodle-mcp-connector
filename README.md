@@ -192,34 +192,35 @@ cache it. When an optional `courseid`/`courseids` argument is omitted, they use
 
 ### Write tools (`MOODLE_ALLOW_WRITE=true`)
 
-Tools marked **plugin** need the companion plugin. They currently call the
-`local_mcpbridge_*` function names inherited from moodle-mcp-bridge.
+Tools marked **plugin** need the companion plugin
+[moodle-local_mcpconnector](#requirements), which provides the
+`local_mcpconnector_*` functions.
 
 | Tool | Content | Moodle web service functions |
 |---|:---:|---|
-| `create_page` | ✓ | `local_mcpbridge_create_page` (plugin) |
-| `update_page` | ✓ | `local_mcpbridge_update_page` (plugin) |
-| `create_book` | ✓ | `local_mcpbridge_create_book` (plugin) |
-| `create_label` | ✓ | `local_mcpbridge_create_label` (plugin) |
-| `create_url` | ✓ | `local_mcpbridge_create_url` (plugin) |
-| `create_quiz` | ✓ | `local_mcpbridge_create_quiz` (plugin) |
-| `add_quiz_question` | ✓ | `local_mcpbridge_add_quiz_question` (plugin) |
-| `add_truefalse_question` | ✓ | `local_mcpbridge_add_truefalse_question` (plugin) |
-| `add_shortanswer_question` | ✓ | `local_mcpbridge_add_shortanswer_question` (plugin) |
-| `add_essay_question` | ✓ | `local_mcpbridge_add_essay_question` (plugin) |
-| `add_numerical_question` | ✓ | `local_mcpbridge_add_numerical_question` (plugin) |
-| `add_matching_question` | ✓ | `local_mcpbridge_add_matching_question` (plugin) |
-| `create_section` | ✓ | `local_mcpbridge_create_section` (plugin) |
-| `delete_section` | ✓ | `local_mcpbridge_delete_section` (plugin) |
-| `update_activity` | ✓ | `local_mcpbridge_update_activity` (plugin) |
-| `move_activity` | ✓ | `local_mcpbridge_move_activity` (plugin) |
-| `delete_activity` | ✓ | `local_mcpbridge_delete_activity` (plugin) |
-| `create_forum` | | `local_mcpbridge_create_forum` (plugin) |
-| `create_choice` | | `local_mcpbridge_create_choice` (plugin) |
-| `create_assignment` | | `local_mcpbridge_create_assignment` (plugin) |
-| `backup_course` | | `local_mcpbridge_backup_course` (plugin) |
-| `restore_course` | | `local_mcpbridge_restore_course` (plugin) |
-| `build_course` | | `core_course_create_courses`, `local_mcpbridge_create_section`, `local_mcpbridge_create_page`, `local_mcpbridge_create_label`, `local_mcpbridge_create_url`, `local_mcpbridge_create_forum`, `local_mcpbridge_create_assignment`, `local_mcpbridge_create_choice`, `local_mcpbridge_create_quiz`, the six `local_mcpbridge_add_*_question` functions (plugin); with `rollback=True` also `core_course_delete_courses` |
+| `create_page` | ✓ | `local_mcpconnector_create_page` (plugin) |
+| `update_page` | ✓ | `local_mcpconnector_update_page` (plugin) |
+| `create_book` | ✓ | `local_mcpconnector_create_book` (plugin) |
+| `create_label` | ✓ | `local_mcpconnector_create_label` (plugin) |
+| `create_url` | ✓ | `local_mcpconnector_create_url` (plugin) |
+| `create_quiz` | ✓ | `local_mcpconnector_create_quiz` (plugin) |
+| `add_quiz_question` | ✓ | `local_mcpconnector_add_quiz_question` (plugin) |
+| `add_truefalse_question` | ✓ | `local_mcpconnector_add_truefalse_question` (plugin) |
+| `add_shortanswer_question` | ✓ | `local_mcpconnector_add_shortanswer_question` (plugin) |
+| `add_essay_question` | ✓ | `local_mcpconnector_add_essay_question` (plugin) |
+| `add_numerical_question` | ✓ | `local_mcpconnector_add_numerical_question` (plugin) |
+| `add_matching_question` | ✓ | `local_mcpconnector_add_matching_question` (plugin) |
+| `create_section` | ✓ | `local_mcpconnector_create_section` (plugin) |
+| `delete_section` | ✓ | `local_mcpconnector_delete_section` (plugin) |
+| `update_activity` | ✓ | `local_mcpconnector_update_activity` (plugin) |
+| `move_activity` | ✓ | `local_mcpconnector_move_activity` (plugin) |
+| `delete_activity` | ✓ | `local_mcpconnector_delete_activity` (plugin) |
+| `create_forum` | | `local_mcpconnector_create_forum` (plugin) |
+| `create_choice` | | `local_mcpconnector_create_choice` (plugin) |
+| `create_assignment` | | `local_mcpconnector_create_assignment` (plugin) |
+| `backup_course` | | `local_mcpconnector_backup_course` (plugin) |
+| `restore_course` | | `local_mcpconnector_restore_course` (plugin) |
+| `build_course` | | `core_course_create_courses`, `local_mcpconnector_create_section`, `local_mcpconnector_create_page`, `local_mcpconnector_create_label`, `local_mcpconnector_create_url`, `local_mcpconnector_create_forum`, `local_mcpconnector_create_assignment`, `local_mcpconnector_create_choice`, `local_mcpconnector_create_quiz`, the six `local_mcpconnector_add_*_question` functions (plugin); with `rollback=True` also `core_course_delete_courses` |
 | `create_course` | | `core_course_create_courses` |
 | `update_course` | | `core_course_update_courses` |
 | `delete_courses` | | `core_course_delete_courses` |
