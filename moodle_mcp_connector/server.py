@@ -1,4 +1,4 @@
-"""moodle-mcp — an MCP server that exposes a Moodle instance as tools.
+"""moodle-mcp-connector — an MCP server that exposes a Moodle instance as tools.
 
 Read tools are always registered. Write tools (course/user/activity creation,
 enrolment, file upload) are only registered when MOODLE_ALLOW_WRITE=true, so a
@@ -54,7 +54,7 @@ ALLOW_WRITE = os.environ.get("MOODLE_ALLOW_WRITE", "").strip().lower() == "true"
 
 REST_ENDPOINT = f"{MOODLE_URL}/webservice/rest/server.php"
 
-mcp = FastMCP("moodle-mcp")
+mcp = FastMCP("moodle-mcp-connector")
 
 
 class MoodleError(Exception):
@@ -199,7 +199,7 @@ def _validate_outline(outline: Any) -> list[str]:
 # READ TOOLS (always registered).
 # --------------------------------------------------------------------------- #
 
-SERVER_VERSION = "1.7.0"
+SERVER_VERSION = "0.1.0"
 
 
 @mcp.tool()

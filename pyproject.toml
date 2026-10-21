@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moodle-mcp-connector"
+version = "0.1.0"
+description = "An MCP server that connects AI agents to Moodle through its REST web services."
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "httpx",
+    "python-dotenv",
+    "mcp>=1.2,<2",
+]
+keywords = ["moodle", "mcp", "model-context-protocol", "lms", "ai"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Education",
+]
+
+[project.scripts]
+moodle-mcp-connector = "moodle_mcp_connector.server:main"
+
+[tool.setuptools.packages.find]
+include = ["moodle_mcp_connector*"]
