@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import html as _htmllib
+import json
+import logging
 import os
 import re
 import time as _time
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +56,10 @@ MOODLE_TOKEN = os.environ.get("MOODLE_TOKEN", "")
 ALLOW_WRITE = os.environ.get("MOODLE_ALLOW_WRITE", "").strip().lower() == "true"
 
 REST_ENDPOINT = f"{MOODLE_URL}/webservice/rest/server.php"
+
+# httpx logs every request URL at INFO. File downloads carry the token in the
+# query string, so keep httpx quiet to stop it reaching MCP client logs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 mcp = FastMCP("moodle-mcp-connector")
 
@@ -1310,6 +1317,250 @@ async def get_learning_plans(userid: int = 0) -> list:
         }
         for p in data
     ]
+
+
+# --- Content reading -------------------------------------------------------- #
+
+_BLOCK_TAGS = {
+    "p", "div", "br", "hr", "li", "ul", "ol", "tr", "table", "section",
+    "article", "blockquote", "pre", "h1", "h2", "h3", "h4", "h5", "h6",
+    "header", "footer", "figure", "figcaption", "dd", "dt",
+}
+
+
+class _TextExtractor(HTMLParser):
+    """Collect visible text, turning block-level tags into line breaks."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._skip = 0
+
+    def handle_starttag(self, tag: str, attrs: list) -> None:
+        if tag in ("script", "style"):
+            self._skip += 1
+        elif tag in _BLOCK_TAGS:
+            self.parts.append("\n")
+        if tag == "li":
+            self.parts.append("- ")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in ("script", "style"):
+            self._skip = max(0, self._skip - 1)
+        elif tag in _BLOCK_TAGS and tag != "li":
+            self.parts.append("\n")
+        elif tag in ("td", "th"):
+            self.parts.append("\t")
+
+    def handle_data(self, data: str) -> None:
+        if not self._skip:
+            self.parts.append(data)
+
+
+def _html_to_text(html: str | None) -> str:
+    """Convert HTML to readable plain text, keeping paragraph breaks.
+
+    Unlike _strip_html (which collapses everything onto one line), this keeps
+    the document's block structure so long pages stay readable.
+    """
+    if not html:
+        return ""
+    parser = _TextExtractor()
+    parser.feed(html)
+    parser.close()
+    lines = [re.sub(r"[ \t\xa0]+", " ", ln).strip() for ln in "".join(parser.parts).splitlines()]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
+async def _download_text(client: httpx.AsyncClient, fileurl: str) -> str:
+    """Download a Moodle file (e.g. a Page's index.html) and return its text.
+
+    The token is appended as `token=` as Moodle's webservice/pluginfile.php
+    expects. It is only ever sent to the configured MOODLE_URL host, and the
+    URL (which contains the token) is never put in an error message.
+    """
+    if not fileurl.startswith(MOODLE_URL + "/"):
+        raise MoodleError("Refusing to send the token to a file URL outside MOODLE_URL.")
+    sep = "&" if "?" in fileurl else "?"
+    try:
+        resp = await client.get(f"{fileurl}{sep}token={MOODLE_TOKEN}")
+    except httpx.HTTPError as exc:
+        raise MoodleError(f"File download failed: {type(exc).__name__}") from None
+    if resp.status_code != 200:
+        raise MoodleError(f"File download failed with HTTP {resp.status_code}.")
+    if "json" in resp.headers.get("content-type", ""):
+        # pluginfile.php reports errors (bad token, files not enabled) as JSON.
+        try:
+            err = resp.json()
+        except ValueError:
+            err = {}
+        if isinstance(err, dict) and ("error" in err or "exception" in err):
+            raise MoodleError(
+                f"File download refused: {err.get('error') or err.get('message')}. "
+                "Check that the web service allows file downloads."
+            )
+    return resp.text
+
+
+async def _find_module(course_id: int, cmid: int) -> dict:
+    """Return the core_course_get_contents entry for one course module."""
+    sections = await _call(
+        "core_course_get_contents",
+        {"courseid": course_id, "options": [{"name": "cmid", "value": cmid}]},
+    )
+    for sec in sections or []:
+        for m in sec.get("modules", []):
+            if m.get("id") == cmid:
+                return m
+    raise MoodleError(f"Activity cmid {cmid} not found in course {course_id}.")
+
+
+def _html_files(module: dict) -> list[dict]:
+    return [
+        f for f in module.get("contents") or []
+        if f.get("type") == "file" and f.get("filename", "").lower().endswith(".html")
+    ]
+
+
+def _book_chapters(module: dict) -> list[dict]:
+    """Order a Book's chapter files using its "structure" table of contents.
+
+    Each chapter is exported as <chapterid>/index.html; the structure entry is a
+    JSON tree of {title, href, level, subitems}. Falls back to file order.
+    """
+    files = {f"{f.get('filepath', '/').strip('/')}/{f['filename']}": f for f in _html_files(module)}
+    structure = next(
+        (c for c in module.get("contents") or [] if c.get("filename") == "structure"), None
+    )
+    ordered: list[dict] = []
+
+    def walk(items: list) -> None:
+        for item in items:
+            f = files.pop(item.get("href", ""), None)
+            if f:
+                ordered.append({"title": _htmllib.unescape(item.get("title", "")), "file": f})
+            walk(item.get("subitems") or [])
+
+    if structure and structure.get("content"):
+        try:
+            walk(json.loads(structure["content"]))
+        except ValueError:
+            pass
+    leftovers = sorted(files.values(), key=lambda f: f.get("sortorder") or 0)
+    ordered.extend({"title": "", "file": f} for f in leftovers)
+    return ordered
+
+
+@mcp.tool()
+async def read_activity(course_id: int, cmid: int) -> dict:
+    """Read the full text of a Page, Book (all chapters) or Label.
+
+    Read-only. `cmid` is the activity's course module id (from
+    get_course_content). Downloads each HTML file the activity exposes and
+    returns plain text, not HTML. Books return every chapter in table-of-
+    contents order, both separately under `chapters` and joined under `text`.
+    The web service must allow file downloads ("Can download files").
+    """
+    module = await _find_module(course_id, cmid)
+    modname = module.get("modname")
+    result: dict[str, Any] = {
+        "course_id": course_id,
+        "cmid": cmid,
+        "modname": modname,
+        "name": module.get("name"),
+    }
+
+    if modname == "label":
+        # A label's content is returned inline as the module description.
+        text = _html_to_text(module.get("description"))
+        if not text and _html_files(module):
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                parts = [await _download_text(client, f["fileurl"]) for f in _html_files(module)]
+            text = "\n\n".join(_html_to_text(p) for p in parts)
+        result["text"] = text
+        return result
+
+    if modname == "page":
+        files = _html_files(module)
+        if not files:
+            raise MoodleError(
+                f"Page {cmid} exposes no HTML file. Check that the web service "
+                "allows file downloads and the token's user can view the page."
+            )
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            parts = await asyncio.gather(*(_download_text(client, f["fileurl"]) for f in files))
+        result["text"] = "\n\n".join(_html_to_text(p) for p in parts)
+        return result
+
+    if modname == "book":
+        chapters = _book_chapters(module)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            bodies = await asyncio.gather(
+                *(_download_text(client, ch["file"]["fileurl"]) for ch in chapters)
+            )
+        result["chapters"] = [
+            {"title": ch["title"], "text": _html_to_text(body)}
+            for ch, body in zip(chapters, bodies)
+        ]
+        result["text"] = "\n\n".join(
+            f"{c['title']}\n\n{c['text']}" if c["title"] else c["text"]
+            for c in result["chapters"]
+        )
+        return result
+
+    raise MoodleError(
+        f"read_activity supports page, book and label; cmid {cmid} is a {modname!r}. "
+        "Use read_lesson for lessons."
+    )
+
+
+@mcp.tool()
+async def read_lesson(course_id: int, cmid: int) -> dict:
+    """Read the text of every page in a Lesson activity, in lesson order.
+
+    Read-only. `cmid` is the lesson's course module id. Uses Moodle's core
+    lesson web services: mod_lesson_get_lessons_by_courses to resolve the
+    lesson, then mod_lesson_get_pages. Returns the lesson intro and, for each
+    page, its title, type (e.g. Content, Multichoice) and plain-text contents.
+    Full page contents generally need a teacher/manager role on the course.
+    """
+    data = await _call("mod_lesson_get_lessons_by_courses", {"courseids": [course_id]})
+    lesson = next(
+        (l for l in data.get("lessons", []) if l.get("coursemodule") == cmid), None
+    )
+    if not lesson:
+        raise MoodleError(f"Lesson cmid {cmid} not found in course {course_id}.")
+
+    pages_data = await _call("mod_lesson_get_pages", {"lessonid": lesson["id"]})
+    pages = {p["page"]["id"]: p["page"] for p in pages_data.get("pages", [])}
+
+    # Pages form a linked list via prevpageid/nextpageid; follow it from the
+    # first page, then append anything unreachable so nothing is dropped.
+    ordered: list[dict] = []
+    current = next((p for p in pages.values() if not p.get("prevpageid")), None)
+    seen: set[int] = set()
+    while current and current["id"] not in seen:
+        seen.add(current["id"])
+        ordered.append(current)
+        current = pages.get(current.get("nextpageid"))
+    ordered.extend(p for pid, p in sorted(pages.items()) if pid not in seen)
+
+    return {
+        "course_id": course_id,
+        "cmid": cmid,
+        "lessonid": lesson["id"],
+        "name": lesson.get("name"),
+        "intro": _html_to_text(lesson.get("intro")),
+        "pages": [
+            {
+                "pageid": p["id"],
+                "title": p.get("title"),
+                "type": p.get("typestring"),
+                "text": _html_to_text(p.get("contents")),
+            }
+            for p in ordered
+        ],
+    }
 
 
 # --------------------------------------------------------------------------- #
