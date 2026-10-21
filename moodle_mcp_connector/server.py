@@ -58,6 +58,9 @@ ALLOW_WRITE = os.environ.get("MOODLE_ALLOW_WRITE", "").strip().lower() == "true"
 
 REST_ENDPOINT = f"{MOODLE_URL}/webservice/rest/server.php"
 
+# Every function of the companion plugin, local_mcpconnector, starts with this.
+PLUGIN_PREFIX = "local_mcpconnector_"
+
 # httpx logs every request URL at INFO. File downloads carry the token in the
 # query string, so keep httpx quiet to stop it reaching MCP client logs.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -112,7 +115,35 @@ def tool():
 
 
 class MoodleError(Exception):
-    """Raised when Moodle returns an error, even on HTTP 200."""
+    """Raised when Moodle returns an error, even on HTTP 200.
+
+    `errorcode` is Moodle's errorcode when the error came from Moodle.
+    """
+
+    def __init__(self, message: str, errorcode: str | None = None) -> None:
+        super().__init__(message)
+        self.errorcode = errorcode
+
+
+# Moodle's errorcodes when a function is not available to the token: it does
+# not exist on the site (invalidrecord) or is not in the token's service
+# (accessexception).
+_MISSING_FUNCTION_CODES = {"invalidrecord", "accessexception"}
+
+
+def _missing_function_message(what: str, wsfunction: str) -> str:
+    if wsfunction.startswith(PLUGIN_PREFIX):
+        return (
+            f"{what} needs {wsfunction}, which this site's plugin version does "
+            "not provide (or the token's web service does not include it)."
+        )
+    return f"{what} needs {wsfunction}, which the token's web service does not include."
+
+
+async def _available_functions() -> set[str]:
+    """Names of the web service functions the token may call."""
+    site = await _call("core_webservice_get_site_info")
+    return {f.get("name") for f in site.get("functions", [])}
 
 
 # --------------------------------------------------------------------------- #
@@ -156,7 +187,21 @@ async def _call(wsfunction: str, params: dict[str, Any] | None = None) -> Any:
         message = payload.get("message", "Unknown Moodle error")
         debug = payload.get("debuginfo")
         detail = f" ({debug})" if debug else ""
-        raise MoodleError(f"Moodle error [{code}]: {message}{detail}")
+        error = MoodleError(f"Moodle error [{code}]: {message}{detail}", errorcode=code)
+        if wsfunction.startswith(PLUGIN_PREFIX) and code in _MISSING_FUNCTION_CODES:
+            # Those codes have other causes too, so confirm the function really
+            # is missing before replacing Moodle's message with ours. Plugin
+            # tools are named after their function, minus the prefix.
+            try:
+                missing = wsfunction not in await _available_functions()
+            except (MoodleError, httpx.HTTPError):
+                missing = False
+            if missing:
+                tool_name = wsfunction[len(PLUGIN_PREFIX):]
+                raise MoodleError(
+                    _missing_function_message(tool_name, wsfunction), errorcode=code
+                ) from error
+        raise error
 
     return payload
 
@@ -196,6 +241,53 @@ _ACTIVITY_TYPES = {
 _QUESTION_TYPES = {
     "multichoice", "truefalse", "shortanswer", "essay", "numerical", "matching",
 }
+
+
+# The plugin function build_course calls for each activity / question type.
+_ACTIVITY_FUNCTIONS = {
+    "page": PLUGIN_PREFIX + "create_page",
+    "label": PLUGIN_PREFIX + "create_label",
+    "url": PLUGIN_PREFIX + "create_url",
+    "forum": PLUGIN_PREFIX + "create_forum",
+    "assignment": PLUGIN_PREFIX + "create_assignment",
+    "choice": PLUGIN_PREFIX + "create_choice",
+    "quiz": PLUGIN_PREFIX + "create_quiz",
+}
+_QUESTION_FUNCTIONS = {
+    "multichoice": PLUGIN_PREFIX + "add_quiz_question",
+    "truefalse": PLUGIN_PREFIX + "add_truefalse_question",
+    "shortanswer": PLUGIN_PREFIX + "add_shortanswer_question",
+    "essay": PLUGIN_PREFIX + "add_essay_question",
+    "numerical": PLUGIN_PREFIX + "add_numerical_question",
+    "matching": PLUGIN_PREFIX + "add_matching_question",
+}
+
+
+def _outline_functions(outline: dict, rollback: bool = False) -> list[tuple[str, str]]:
+    """List (what, wsfunction) for every function a valid outline will call.
+
+    Pure, so build_course can check them all against the site's function list
+    before writing anything. Each function appears once, under the first
+    thing that needs it.
+    """
+    needed: dict[str, str] = {}
+    creates_course = not outline.get("courseid")
+    if creates_course:
+        needed.setdefault("core_course_create_courses", "creating the course")
+        if rollback:
+            needed.setdefault("core_course_delete_courses", "rollback")
+    sections = outline.get("sections", [])
+    if sections:
+        needed.setdefault(PLUGIN_PREFIX + "create_section", "sections")
+    for sec in sections:
+        for act in sec.get("activities", []):
+            atype = act.get("type")
+            needed.setdefault(_ACTIVITY_FUNCTIONS[atype], atype)
+            if atype == "quiz":
+                for q in act.get("questions", []) or []:
+                    qtype = q.get("qtype", "multichoice")
+                    needed.setdefault(_QUESTION_FUNCTIONS[qtype], f"{qtype} questions")
+    return [(what, fn) for fn, what in needed.items()]
 
 
 def _validate_outline(outline: Any) -> list[str]:
@@ -258,8 +350,6 @@ SERVER_VERSION = "0.1.0"
 # Oldest local_mcpconnector plugin version (its version.php $plugin->version)
 # whose functions and return values this server is written against.
 MIN_PLUGIN_VERSION = 2026102110
-
-PLUGIN_PREFIX = "local_mcpconnector_"
 
 
 async def _plugin_status(funcs: set) -> dict:
@@ -1914,9 +2004,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an empty Quiz activity (settings only).
 
-        Requires the local_mcpconnector plugin. This creates the quiz container;
-        adding questions is a separate, heavier operation (not supported here).
-        Returns the new cmid and quiz instance id.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        This creates the quiz container; add questions with the add_*_question
+        tools. Returns the new cmid and quiz instance id.
         """
         return await _call(
             "local_mcpconnector_create_quiz",
@@ -1945,12 +2038,16 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a multiple-choice question to an existing quiz.
 
-        Requires the local_mcpconnector plugin. `quizcmid` is the quiz's course
-        module id (the cmid returned by create_quiz). `answers` is a list of
-        dicts, each: {"text": "...", "fraction": 1.0, "feedback": ""} where
-        fraction is the grade weight (1.0 = fully correct, 0 = wrong, negatives
-        penalise). Provide at least two answers. `single=1` means exactly one
-        correct answer. Returns the new question id and its slot in the quiz.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `quizcmid` is the quiz's course module id (the cmid returned by
+        create_quiz). `answers` is a list of dicts, each: {"text": "...",
+        "fraction": 1.0, "feedback": ""} where fraction is the grade weight
+        (1.0 = fully correct, 0 = wrong, negatives penalise). Provide at least
+        two answers. `single=1` means exactly one correct answer. Returns the
+        new question id and its slot in the quiz.
         """
         return await _call(
             "local_mcpconnector_add_quiz_question",
@@ -1974,9 +2071,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a true/false question to a quiz.
 
-        Requires the local_mcpconnector plugin. `quizcmid` is the quiz's course
-        module id. `correctanswer` = 1 for true, 0 for false. Returns the new
-        question id and its slot.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `quizcmid` is the quiz's course module id. `correctanswer` = 1 for
+        true, 0 for false. Returns the new question id and its slot.
         """
         return await _call(
             "local_mcpconnector_add_truefalse_question",
@@ -2000,9 +2100,13 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a short-answer question to a quiz.
 
-        Requires the local_mcpconnector plugin. `answers` is a list of accepted
-        answer strings (all treated as fully correct). `usecase` = 1 for
-        case-sensitive matching. Returns the new question id and its slot.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `answers` is a list of accepted answer strings (all treated as fully
+        correct). `usecase` = 1 for case-sensitive matching. Returns the new
+        question id and its slot.
         """
         return await _call(
             "local_mcpconnector_add_shortanswer_question",
@@ -2029,11 +2133,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add an essay (free-text) question to a quiz.
 
-        Requires the local_mcpconnector plugin. Essay questions are graded
-        manually. `graderinfo` is private guidance for whoever marks it;
-        `responsetemplate` pre-fills the student's answer box; `attachments`
-        allows file uploads (0 = none, 1-3 = that many, -1 = unlimited).
-        Returns the new question id and its slot.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        Essay questions are graded manually. `graderinfo` is private guidance
+        for whoever marks it; `responsetemplate` pre-fills the student's answer
+        box; `attachments` allows file uploads (0 = none, 1-3 = that many, -1 =
+        unlimited). Returns the new question id and its slot.
         """
         return await _call(
             "local_mcpconnector_add_essay_question",
@@ -2059,11 +2166,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a numerical question to a quiz.
 
-        Requires the local_mcpconnector plugin. `answers` is a list of dicts,
-        each: {"answer": 42.0, "tolerance": 0.5, "fraction": 1.0,
-        "feedback": ""} — a student response within ±tolerance of answer
-        earns that fraction of the marks (1.0 = full credit). Returns the new
-        question id and its slot.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `answers` is a list of dicts, each: {"answer": 42.0, "tolerance": 0.5,
+        "fraction": 1.0, "feedback": ""} — a student response within ±tolerance
+        of answer earns that fraction of the marks (1.0 = full credit). Returns
+        the new question id and its slot.
         """
         return await _call(
             "local_mcpconnector_add_numerical_question",
@@ -2087,10 +2197,13 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a matching question to a quiz.
 
-        Requires the local_mcpconnector plugin. `pairs` is a list of dicts, each:
-        {"question": "Capital of France", "answer": "Paris"} — students match
-        each left-hand item to the right answer. At least two pairs. Returns
-        the new question id and its slot.
+        Requires the local_mcpconnector plugin. NOTE: this function is planned
+        for the plugin's next release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `pairs` is a list of dicts, each: {"question": "Capital of France",
+        "answer": "Paris"} — students match each left-hand item to the right
+        answer. At least two pairs. Returns the new question id and its slot.
         """
         return await _call(
             "local_mcpconnector_add_matching_question",
@@ -2136,8 +2249,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Forum activity in a course.
 
-        Requires the local_mcpconnector plugin. `type` is one of: general,
-        eachuser, single, qanda, blog. Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. NOTE: this function is not in
+        the plugin's current release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `type` is one of: general, eachuser, single, qanda, blog. Returns the
+        new cmid and instance id.
         """
         return await _call(
             "local_mcpconnector_create_forum",
@@ -2163,8 +2280,12 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Choice (poll) activity in a course.
 
-        Requires the local_mcpconnector plugin. `options` is a list of at least two
-        answer strings students pick from. Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. NOTE: this function is not in
+        the plugin's current release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        `options` is a list of at least two answer strings students pick from.
+        Returns the new cmid and instance id.
         """
         return await _call(
             "local_mcpconnector_create_choice",
@@ -2191,9 +2312,13 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an Assignment activity in a course.
 
-        Requires the local_mcpconnector plugin. Enables online-text and file
-        submissions with feedback comments. `duedate` is a unix timestamp
-        (0 = no due date). Returns the new cmid and instance id.
+        Requires the local_mcpconnector plugin. NOTE: this function is not in
+        the plugin's current release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        Enables online-text and file submissions with feedback comments.
+        `duedate` is a unix timestamp (0 = no due date). Returns the new cmid
+        and instance id.
         """
         return await _call(
             "local_mcpconnector_create_assignment",
@@ -2615,11 +2740,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """Back a whole course up to a .mbz file on the local machine.
 
-        Requires the local_mcpconnector plugin. The backup runs on the Moodle
-        server, is transferred base64-encoded, and is written to `save_to`
-        (default: ./course_<id>.mbz). Content-only by default; pass
-        includeusers=1 to keep enrolments and user data. Courses over 100MB
-        are refused. Returns the saved path and size.
+        Requires the local_mcpconnector plugin. NOTE: this function is not in
+        the plugin's current release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        The backup runs on the Moodle server, is transferred base64-encoded,
+        and is written to `save_to` (default: ./course_<id>.mbz). Content-only
+        by default; pass includeusers=1 to keep enrolments and user data.
+        Courses over 100MB are refused. Returns the saved path and size.
         """
         import base64 as _b64
 
@@ -2644,11 +2772,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Restore a .mbz backup file into a NEW course.
 
-        Requires the local_mcpconnector plugin. Reads the local `filepath`
-        (created by backup_course, or any Moodle .mbz), uploads it and
-        restores it as a brand-new course in `categoryid`. `fullname` and
-        `shortname` override the names stored in the backup. Returns the new
-        course's id and names.
+        Requires the local_mcpconnector plugin. NOTE: this function is not in
+        the plugin's current release. Until the plugin adds it, the call fails
+        with a message saying so.
+
+        Reads the local `filepath` (created by backup_course, or any Moodle
+        .mbz), uploads it and restores it as a brand-new course in
+        `categoryid`. `fullname` and `shortname` override the names stored in
+        the backup. Returns the new course's id and names.
         """
         import base64 as _b64
 
@@ -2668,7 +2799,11 @@ def _register_write_tools() -> None:
         """⚠️ WRITES LIVE DATA. Build a whole course from one JSON outline.
 
         The outline is validated up front — a malformed one is rejected before
-        anything is written, with a list of problems. Set `rollback=True` to
+        anything is written, with a list of problems. It is also checked
+        against the site's function list: if the plugin (or the token's
+        service) lacks a function the outline needs, such as quizzes, the
+        outline is rejected before anything is written, naming what is
+        missing. Set `rollback=True` to
         make the build transactional: if any section or activity fails AND this
         call created the course, the whole course is deleted so you are not left
         with a half-built one. With `rollback=False` (default) a failing item is
@@ -2714,6 +2849,18 @@ def _register_write_tools() -> None:
         problems = _validate_outline(outline)
         if problems:
             raise MoodleError("Invalid course outline: " + "; ".join(problems))
+
+        # Check every function the build needs before writing anything, so a
+        # site whose plugin lacks e.g. quizzes rejects the outline up front
+        # instead of failing halfway through.
+        available = await _available_functions()
+        missing = [
+            _missing_function_message(what, fn)
+            for what, fn in _outline_functions(outline, rollback)
+            if fn not in available
+        ]
+        if missing:
+            raise MoodleError("Cannot build this course: " + " ".join(missing))
 
         log: list[dict] = []
         created_course = False
