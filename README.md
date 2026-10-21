@@ -309,10 +309,10 @@ writes anything and rejects the outline if any is missing.
   (for example `{env:MOODLE_TOKEN}` in OpenCode) rather than pasting the
   token. If a token leaks, revoke it in *Manage tokens* and issue a new one.
 - The token is sent as a POST field for web service calls. File downloads
-  have to put it in the URL, so request URLs are kept out of the logs, and
-  `read_activity` only sends it to the `MOODLE_URL` host. `download_file`
-  appends the token to whatever URL it is given, so only enable write mode
-  for agents you trust with it.
+  (`read_activity`, `download_file`) have to put it in the URL, so request
+  URLs are kept out of logs and error messages, and both tools refuse any URL
+  outside the `MOODLE_URL` site. An agent cannot get the token sent to
+  another host.
 
 ## Contributing
 

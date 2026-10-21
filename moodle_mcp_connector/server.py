@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -1549,14 +1550,22 @@ def _html_to_text(html: str | None) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
-async def _download_text(client: httpx.AsyncClient, fileurl: str) -> str:
-    """Download a Moodle file (e.g. a Page's index.html) and return its text.
+def _is_moodle_url(url: str) -> bool:
+    """True if `url` points inside the configured MOODLE_URL site."""
+    if not MOODLE_URL or not url.startswith(MOODLE_URL + "/"):
+        return False
+    # Belt and braces: the parsed host must match too.
+    return urlsplit(url).netloc.lower() == urlsplit(MOODLE_URL).netloc.lower()
+
+
+async def _fetch_file(client: httpx.AsyncClient, fileurl: str) -> httpx.Response:
+    """Download a Moodle file (e.g. a Page's index.html) with the token.
 
     The token is appended as `token=` as Moodle's webservice/pluginfile.php
-    expects. It is only ever sent to the configured MOODLE_URL host, and the
+    expects. It is only ever sent to the configured MOODLE_URL site, and the
     URL (which contains the token) is never put in an error message.
     """
-    if not fileurl.startswith(MOODLE_URL + "/"):
+    if not _is_moodle_url(fileurl):
         raise MoodleError("Refusing to send the token to a file URL outside MOODLE_URL.")
     sep = "&" if "?" in fileurl else "?"
     try:
@@ -1576,7 +1585,12 @@ async def _download_text(client: httpx.AsyncClient, fileurl: str) -> str:
                 f"File download refused: {err.get('error') or err.get('message')}. "
                 "Check that the web service allows file downloads."
             )
-    return resp.text
+    return resp
+
+
+async def _download_text(client: httpx.AsyncClient, fileurl: str) -> str:
+    """Download a Moodle file and return its text (see _fetch_file)."""
+    return (await _fetch_file(client, fileurl)).text
 
 
 async def _find_module(course_id: int, cmid: int) -> dict:
@@ -2689,16 +2703,16 @@ def _register_write_tools() -> None:
     async def download_file(fileurl: str) -> dict:
         """Download a file from the Moodle site by its pluginfile URL.
 
-        Requires the service to allow file downloads (downloadfiles=1). Appends
-        the token, fetches the bytes, and returns the size and base64 content.
+        Requires the service to allow file downloads (downloadfiles=1).
+        `fileurl` must be on the configured MOODLE_URL site (e.g. a fileurl
+        from get_course_content); any other URL is refused, so the token is
+        never sent elsewhere. Appends the token, fetches the bytes, and
+        returns the size and base64 content.
         """
         import base64 as _b64
 
-        sep = "&" if "?" in fileurl else "?"
-        url = f"{fileurl}{sep}token={MOODLE_TOKEN}"
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
+            resp = await _fetch_file(client, fileurl)
             content = resp.content
         return {
             "size": len(content),
