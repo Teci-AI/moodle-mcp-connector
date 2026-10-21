@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "moodle-mcp-connector"
 version = "0.1.0"
 description = "An MCP server that connects AI agents to Moodle through its REST web services."
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
