@@ -29,6 +29,23 @@ MOODLE_URL=https://moodle-test.example.edu
 MOODLE_TOKEN=replace-me
 ```
 
+## Building the package
+
+CI checks on every push that the package builds and installs. To run the
+same check locally:
+
+```bash
+python -m build                      # wheel and sdist in dist/
+python -m twine check --strict dist/*
+python scripts/check_wheel.py dist   # install the wheel in a clean venv and smoke-test it
+```
+
+`check_wheel.py` installs the wheel into a fresh virtual environment outside
+the repository, checks that `moodle-mcp-connector` and
+`python -m moodle_mcp_connector` exit cleanly without any configuration, runs
+a short MCP session, and fails if the token ever appears in the output. Add
+`--installer uv` to install with uv instead of pip.
+
 ## How tools are organised
 
 Every tool lives in [`moodle_mcp_connector/server.py`](moodle_mcp_connector/server.py):
