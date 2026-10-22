@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import html as _htmllib
+import importlib.metadata as _metadata
 import json
 import logging
 import os
@@ -382,7 +383,19 @@ def _validate_outline(outline: Any) -> list[str]:
 # READ TOOLS (always registered).
 # --------------------------------------------------------------------------- #
 
-SERVER_VERSION = "0.1.0"
+def _package_version() -> str:
+    """This package's version, from its installed metadata (pyproject.toml).
+
+    pyproject.toml is the only place the version is written down. Running
+    from a checkout that was never installed gives "0+unknown".
+    """
+    try:
+        return _metadata.version("moodle-mcp-connector")
+    except _metadata.PackageNotFoundError:
+        return "0+unknown"
+
+
+SERVER_VERSION = _package_version()
 
 # Oldest local_mcpconnector plugin version (its version.php $plugin->version)
 # whose functions and return values this server is written against.

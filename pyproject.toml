@@ -8,22 +8,41 @@ version = "0.1.0"
 description = "An MCP server that connects AI agents to Moodle through its REST web services."
 readme = "README.md"
 requires-python = ">=3.11"
+# SPDX expression (PEP 639). setuptools>=77 rejects a "License ::" classifier
+# alongside it; PyPI shows the license from this field instead.
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [{ name = "Teci" }]
+# Floors are the oldest versions the test suite passes with (resolved with
+# uv --resolution lowest-direct). mcp releases before 1.21.1 no longer import
+# with current pydantic, and mcp 1.21.1 itself needs httpx>=0.27.1.
 dependencies = [
-    "httpx",
-    "python-dotenv",
-    "mcp>=1.2,<2",
+    "httpx>=0.27.1",
+    "python-dotenv>=1.0",
+    "mcp>=1.21.1,<2",
 ]
 keywords = ["moodle", "mcp", "model-context-protocol", "lms", "ai"]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Education",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Teci-AI/moodle-mcp-connector"
+Repository = "https://github.com/Teci-AI/moodle-mcp-connector"
+Issues = "https://github.com/Teci-AI/moodle-mcp-connector/issues"
+Changelog = "https://github.com/Teci-AI/moodle-mcp-connector/blob/main/CHANGES.md"
+
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "build", "twine"]
 
 [project.scripts]
 moodle-mcp-connector = "moodle_mcp_connector.server:main"
