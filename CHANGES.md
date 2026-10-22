@@ -9,7 +9,8 @@ moodle-mcp-bridge 1.7.0.
 ### Tools
 
 - **90 tools**: 41 read tools, always available, and 49 write tools. The
-  [README](README.md#tools) lists every tool with the exact Moodle web
+  [README](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/README.md#tools)
+  lists every tool with the exact Moodle web
   service functions it calls.
 - **Reading course content**: `read_activity` returns the full plain text of a
   Page, Book (every chapter) or Label; `read_lesson` returns a Lesson's pages

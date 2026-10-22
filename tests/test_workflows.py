@@ -76,6 +76,43 @@ def test_lowest_dependencies_job_uses_oldest_python_and_floors():
     assert "python -m pytest" in lowest
 
 
+RELEASE = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
+
+
+def test_release_runs_only_on_version_tags():
+    trigger = RELEASE.split("\non:", 1)[1].split("\npermissions:", 1)[0]
+    assert re.search(r'push:\n\s+tags: \["v\*"\]', trigger)
+    assert "branches" not in trigger and "pull_request" not in trigger
+
+
+def test_release_permissions_and_token():
+    assert re.search(r"^permissions:\n  contents: write\n", RELEASE, re.M)
+    assert "GH_TOKEN: ${{ github.token }}" in RELEASE
+
+
+def test_release_checks_before_building_and_publishing():
+    steps = ["scripts/release_check.py", "python -m pytest", "python -m build",
+             "twine check --strict dist/*", "scripts/check_wheel.py dist",
+             "gh release create"]
+    positions = [RELEASE.index(step) for step in steps]
+    assert positions == sorted(positions), "steps are out of order"
+    assert '--tag "$GITHUB_REF_NAME"' in RELEASE
+
+
+def test_release_attaches_both_files_and_marks_prereleases():
+    create = RELEASE[RELEASE.index("gh release create"):]
+    assert 'gh release create "$TAG" dist/*' in create
+    assert '--notes-file "$RUNNER_TEMP/release-notes.md"' in create
+    assert "--verify-tag" in create
+    assert "PRERELEASE: ${{ steps.check.outputs.prerelease }}" in RELEASE
+    assert 'if [ "$PRERELEASE" = "true" ]; then\n            flags+=(--prerelease)' in RELEASE
+
+
+def test_release_never_publishes_to_pypi():
+    for forbidden in ("twine upload", "pypi", "PYPI", "gh-action-pypi-publish"):
+        assert forbidden not in RELEASE
+
+
 def test_build_job_builds_checks_and_smoke_tests_once():
     build = job(CI, "build")
     for step in ("python -m build", "twine check --strict dist/*",

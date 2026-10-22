@@ -1,0 +1,58 @@
+name: Release
+
+# Runs when a version tag such as v0.1.0 is pushed. It refuses to release
+# unless the tag matches pyproject.toml and CHANGES.md has a section for
+# that version, then tests, builds and publishes a GitHub release with the
+# wheel and sdist attached. It never publishes to PyPI.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Check the tag, version and release notes
+        id: check
+        run: >
+          python scripts/release_check.py
+          --tag "$GITHUB_REF_NAME"
+          --notes-out "$RUNNER_TEMP/release-notes.md"
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Run tests
+        run: python -m pytest -v
+
+      - name: Build wheel and sdist
+        run: python -m build
+      - name: Check metadata
+        run: python -m twine check --strict dist/*
+      - name: Install the wheel in a clean venv and smoke-test it
+        run: python scripts/check_wheel.py dist
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.check.outputs.prerelease }}
+        run: |
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$TAG" dist/* \
+            --verify-tag \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "${flags[@]}"
