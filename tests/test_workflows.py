@@ -113,6 +113,25 @@ def test_release_never_publishes_to_pypi():
         assert forbidden not in RELEASE
 
 
+def test_default_branch_is_main_everywhere():
+    """Links and triggers use main (the plugin repository's default), never master."""
+    import subprocess
+
+    files = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True,
+                           text=True, check=True).stdout.split()
+    links = []
+    for name in files:
+        path = ROOT / name
+        if path.suffix not in {".md", ".toml", ".yml", ".py"} or path == Path(__file__):
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert "master" not in text.lower(), f"{name} mentions master"
+        links += re.findall(r"github\.com/Teci-AI/[\w.-]+/(?:blob|tree)/([\w.-]+)/", text)
+    assert links and set(links) == {"main"}
+    # CI must not be pinned to a branch name that a rename would break.
+    assert 'branches: ["**"]' in CI
+
+
 def test_build_job_builds_checks_and_smoke_tests_once():
     build = job(CI, "build")
     for step in ("python -m build", "twine check --strict dist/*",
