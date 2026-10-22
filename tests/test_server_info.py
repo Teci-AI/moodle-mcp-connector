@@ -5,7 +5,7 @@ import asyncio
 import httpx
 import pytest
 
-from conftest import site_info
+from fakes import site_info
 from moodle_mcp_connector import server
 
 GET_INFO = "local_mcpconnector_get_info"

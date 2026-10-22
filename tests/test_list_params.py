@@ -13,7 +13,7 @@ import re
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
-from conftest import site_info
+from fakes import site_info
 from moodle_mcp_connector import server
 
 P = server.PLUGIN_PREFIX

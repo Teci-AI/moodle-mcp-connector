@@ -46,6 +46,109 @@ the repository, checks that `moodle-mcp-connector` and
 a short MCP session, and fails if the token ever appears in the output. Add
 `--installer uv` to install with uv instead of pip.
 
+## Live integration tests
+
+`tests/integration` runs every plugin tool against a real Moodle site,
+through the same MCP layer an agent uses. The tests are opt-in: they skip
+unless `MOODLE_TEST_URL` and `MOODLE_TEST_TOKEN` are set, and CI never sets
+them.
+
+Each run creates its own hidden throwaway course (shortname
+`mcptest-<timestamp>-<random>-main`) in a test category, plus a few more
+courses that `build_course` and `restore_course` create. At the end it
+deletes all of them, even when tests fail. It never touches any other
+course, and teardown refuses to delete a course whose shortname does not
+start with `mcptest-`. **Use a development or test site, never production.**
+
+### One-time setup on the Moodle site
+
+1. Install **local_mcpconnector 0.1.0 (version 2026102123) or newer**.
+2. Create an empty category for the tests, for example "MCP connector tests",
+   and note its id (the `categoryid=` value in its URL).
+3. Create a dedicated user for the tests, for example `mcp-tests`.
+4. Give that user:
+   - the **Manager** role in the test category (*category → Permissions →
+     Assign roles*). Every throwaway course inherits it, so it covers
+     creating, editing, backing up and deleting them. It also gives the
+     restore capabilities (`moodle/course:create`,
+     `moodle/restore:restorecourse`, `moodle/restore:uploadfile`) in the
+     category, which a Teacher role does not have. A Teacher role in one fixed
+     course is not enough, because each run works in courses it has just
+     created.
+   - the `webservice/rest:use` capability at system level, for example
+     through a system role that has only that capability.
+5. Create a **custom** web service for the tests (*Site administration →
+   Server → Web services → External services → Add*): tick **Enabled**,
+   **Authorised users only** and **Can download files**, then add exactly
+   these functions:
+
+   ```
+   core_webservice_get_site_info
+   core_course_create_courses
+   core_course_delete_courses
+   core_course_get_contents
+   core_course_get_courses_by_field
+   local_mcpconnector_get_info
+   local_mcpconnector_create_section
+   local_mcpconnector_delete_section
+   local_mcpconnector_create_page
+   local_mcpconnector_update_page
+   local_mcpconnector_create_book
+   local_mcpconnector_create_label
+   local_mcpconnector_create_url
+   local_mcpconnector_create_forum
+   local_mcpconnector_create_choice
+   local_mcpconnector_create_assignment
+   local_mcpconnector_update_activity
+   local_mcpconnector_move_activity
+   local_mcpconnector_delete_activity
+   local_mcpconnector_create_quiz
+   local_mcpconnector_add_quiz_question
+   local_mcpconnector_add_truefalse_question
+   local_mcpconnector_add_shortanswer_question
+   local_mcpconnector_add_essay_question
+   local_mcpconnector_add_numerical_question
+   local_mcpconnector_add_matching_question
+   local_mcpconnector_backup_course
+   local_mcpconnector_restore_course
+   ```
+
+   The plugin's ready-made **MCP Connector Service** is not enough on its
+   own: it has every plugin function but not `core_course_create_courses` or
+   `core_course_delete_courses`, which the tests need for their throwaway
+   courses and `build_course` needs for rollback. Moodle does not allow
+   functions to be added to a plugin's built-in service.
+6. Open **Authorised users** for the new service and add the test user.
+7. *Manage tokens*: create a token for the test user and the new service.
+
+### Configure and run
+
+Put the settings in `.env.test` at the repository root (git-ignored), or set
+them as environment variables, which take precedence:
+
+```dotenv
+MOODLE_TEST_URL=https://moodle-dev.example.edu
+MOODLE_TEST_TOKEN=paste-the-test-token-here
+MOODLE_TEST_CATEGORYID=12
+```
+
+Then:
+
+```bash
+pip install -e ".[dev]"
+pytest tests/integration -v
+```
+
+There are 16 tests, which take a minute or two. Without
+`MOODLE_TEST_CATEGORYID` only the `server_info` check runs. Nothing prints
+the token: it is kept out of assertion messages, and every test report is
+scrubbed of it.
+
+If a run is killed before its teardown (for example the process is
+terminated), courses named `mcptest-...` may be left in the test category;
+delete them by hand. If the category recycle bin is enabled, deleted test
+courses also show up there for a while, which is normal Moodle behaviour.
+
 ## How tools are organised
 
 Every tool lives in [`moodle_mcp_connector/server.py`](moodle_mcp_connector/server.py):

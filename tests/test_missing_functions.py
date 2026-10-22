@@ -6,7 +6,7 @@ import inspect
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
-from conftest import moodle_error, site_info
+from fakes import moodle_error, site_info
 from moodle_mcp_connector import server
 
 P = server.PLUGIN_PREFIX

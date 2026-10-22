@@ -8,3 +8,6 @@ build/
 
 # Local agent notes, not part of the project
 CLAUDE.md
+
+# Live integration test settings (MOODLE_TEST_URL, MOODLE_TEST_TOKEN, ...)
+.env.test
