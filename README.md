@@ -28,24 +28,40 @@ see [LICENSE](LICENSE).
 - A web service token for a dedicated Moodle account (see [Security](#security))
 - For the write tools that create and edit pages, books, labels, URLs,
   sections and activities: the companion Moodle plugin
-  **local_mcpconnector** (repository: moodle-local_mcpconnector), version
-  2026102123 or later, which has been tested on Moodle 5.3.
+  **local_mcpconnector** (repository: moodle-local_mcpconnector), release
+  0.1.0 (version 2026102123) or later, which has been tested on Moodle 5.3.
   `server_info` reports the installed plugin version and whether it is
   compatible. Read tools and the core-Moodle write tools (courses, users,
   enrolments, grading and so on) work without it.
 
 ## Installation
 
-Clone the repository, then install it into a virtual environment:
+This is release 0.1.0. Its plugin write tools need **local_mcpconnector 0.1.0
+(version 2026102123) or newer** on the Moodle site.
+
+Install it with pip, ideally into a virtual environment:
 
 ```bash
-python -m venv .venv
-# Windows:      .venv\Scripts\activate
-# macOS/Linux:  source .venv/bin/activate
-pip install -e .
+pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0"
 ```
 
-This installs the `moodle-mcp-connector` command. Both of these start the
+Or run it without installing anything, with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uvx --from "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0" moodle-mcp-connector
+```
+
+**While the repository is private**, installing needs GitHub access to it.
+Either use the HTTPS URL above with a Git credential helper that is logged in
+to GitHub (for example Git Credential Manager, or `gh auth login` followed by
+`gh auth setup-git`), or use the SSH URL with a key that GitHub knows:
+
+```bash
+pip install "git+ssh://git@github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0"
+uvx --from "git+ssh://git@github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0" moodle-mcp-connector
+```
+
+pip installs the `moodle-mcp-connector` command. Both of these start the
 server:
 
 ```bash
@@ -54,7 +70,8 @@ python -m moodle_mcp_connector
 ```
 
 The server talks MCP over stdio. Started by hand, it waits silently for an MCP
-client; that is expected. Stop it with Ctrl+C.
+client; that is expected. Stop it with Ctrl+C. To upgrade, install again with
+the new release's tag.
 
 ## Configuration
 
@@ -144,6 +161,8 @@ Add the server to `opencode.json` (project) or `~/.config/opencode/opencode.json
 (global). `{env:MOODLE_TOKEN}` reads the token from your shell environment so it
 never lands in the config file:
 
+With the command installed by pip:
+
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
@@ -165,8 +184,36 @@ never lands in the config file:
 
 If `moodle-mcp-connector` is not on OpenCode's `PATH` (for example because it
 lives in a virtual environment), use the full path to the executable, such as
-`["C:/path/to/repo/.venv/Scripts/moodle-mcp-connector.exe"]` or
-`["/path/to/repo/.venv/bin/moodle-mcp-connector"]`.
+`["C:/Users/you/moodle-mcp/.venv/Scripts/moodle-mcp-connector.exe"]` or
+`["/home/you/moodle-mcp/.venv/bin/moodle-mcp-connector"]`.
+
+Or let uv fetch and run the release, with nothing installed beforehand. The
+first start takes a little longer while uv builds it; after that it runs
+from uv's cache. While the repository is private, the machine needs the
+GitHub access described under [Installation](#installation):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "moodle": {
+      "type": "local",
+      "command": [
+        "uvx", "--from",
+        "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0",
+        "moodle-mcp-connector"
+      ],
+      "enabled": true,
+      "environment": {
+        "MOODLE_URL": "https://moodle.example.edu",
+        "MOODLE_TOKEN": "{env:MOODLE_TOKEN}",
+        "MOODLE_TOOLSET": "content",
+        "MOODLE_ALLOW_WRITE": "false"
+      }
+    }
+  }
+}
+```
 
 ## Tools
 
@@ -311,9 +358,25 @@ anything, rejecting the outline if any is missing.
   outside the `MOODLE_URL` site. An agent cannot get the token sent to
   another host.
 
+## Development
+
+To work on the server itself, clone the repository and install it in
+editable mode with the development tools:
+
+```bash
+git clone git@github.com:Teci-AI/moodle-mcp-connector.git
+cd moodle-mcp-connector
+python -m venv .venv
+# Windows:      .venv\Scripts\activate
+# macOS/Linux:  source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+```
+
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a new tool.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a new tool, build the
+package and run the live integration tests.
 
 ## License
 

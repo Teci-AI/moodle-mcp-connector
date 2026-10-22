@@ -2,13 +2,70 @@
 
 import ast
 import asyncio
+import json
 import re
+import tomllib
 from pathlib import Path
 
 from moodle_mcp_connector import server
 
 README = (Path(__file__).resolve().parent.parent / "README.md").read_text(encoding="utf-8")
 ROWS = re.findall(r"^\| `(\w+)` \| ?(✓?) ?\| (.*) \|$", README, re.M)
+
+
+VERSION = tomllib.loads((Path(server.__file__).resolve().parent.parent / "pyproject.toml")
+                        .read_text(encoding="utf-8"))["project"]["version"]
+REPO = "github.com/Teci-AI/moodle-mcp-connector.git"
+
+
+def readme_section(title: str) -> str:
+    match = re.search(rf"^## {re.escape(title)}\n(.*?)(?=^## |\Z)", README, re.M | re.S)
+    assert match, f"README has no '## {title}' section"
+    return match.group(1)
+
+
+def test_installation_leads_with_pip_and_uvx_from_the_release_tag():
+    install = readme_section("Installation")
+    pip_cmd = f'pip install "git+https://{REPO}@v{VERSION}"'
+    uvx_cmd = f'uvx --from "git+https://{REPO}@v{VERSION}" moodle-mcp-connector'
+    assert pip_cmd in install and uvx_cmd in install
+    assert install.index(pip_cmd) < install.index(uvx_cmd)
+    first_command = re.search(r"```bash\n(.*?)\n", install).group(1)
+    assert first_command == pip_cmd
+
+
+def test_private_repo_access_is_explained():
+    install = readme_section("Installation")
+    assert "While the repository is private" in install
+    assert "credential helper" in install
+    assert f"git+ssh://git@{REPO}@v{VERSION}" in install
+
+
+def test_every_git_url_is_pinned_to_the_current_release():
+    urls = re.findall(r"git\+(?:https|ssh)://[^\s\"']+", README)
+    assert urls
+    assert [u for u in urls if not u.endswith(f".git@v{VERSION}")] == []
+
+
+def test_development_section_keeps_editable_install():
+    dev = readme_section("Development")
+    assert 'pip install -e ".[dev]"' in dev
+    assert 'pip install -e ".[dev]"' not in readme_section("Installation")
+
+
+def test_installation_states_the_plugin_version():
+    install = readme_section("Installation")
+    assert f"version {server.MIN_PLUGIN_VERSION}" in install
+
+
+def test_json_config_examples_are_valid():
+    blocks = re.findall(r"```json\n(.*?)```", README, re.S)
+    assert len(blocks) >= 2
+    for block in blocks:
+        config = json.loads(block)
+        command = config["mcp"]["moodle"]["command"]
+        assert "moodle-mcp-connector" in command
+        assert config["mcp"]["moodle"]["environment"]["MOODLE_TOKEN"] == "{env:MOODLE_TOKEN}"
 
 
 def test_every_tool_has_exactly_one_row():
