@@ -24,21 +24,30 @@ def readme_section(title: str) -> str:
     return match.group(1)
 
 
-def test_installation_leads_with_pip_and_uvx_from_the_release_tag():
+def test_installation_leads_with_pypi_pip_then_uvx():
     install = readme_section("Installation")
-    pip_cmd = f'pip install "git+https://{REPO}@v{VERSION}"'
-    uvx_cmd = f'uvx --from "git+https://{REPO}@v{VERSION}" moodle-mcp-connector'
-    assert pip_cmd in install and uvx_cmd in install
-    assert install.index(pip_cmd) < install.index(uvx_cmd)
-    first_command = re.search(r"```bash\n(.*?)\n", install).group(1)
-    assert first_command == pip_cmd
+    commands = re.findall(r"```bash\n(.*?)\n", install)
+    assert commands[:2] == ["pip install moodle-mcp-connector", "uvx moodle-mcp-connector"]
 
 
-def test_private_repo_access_is_explained():
+def test_installation_names_this_release_and_how_to_pin_it():
     install = readme_section("Installation")
-    assert "While the repository is private" in install
-    assert "credential helper" in install
-    assert f"git+ssh://git@{REPO}@v{VERSION}" in install
+    assert f"This is release {VERSION}." in install
+    assert f'pip install "moodle-mcp-connector=={VERSION}"' in install
+    assert f"uvx moodle-mcp-connector@{VERSION}" in install
+    assert f'pip install "git+https://{REPO}@v{VERSION}"' in install
+
+
+def test_no_private_repository_instructions_remain():
+    for stale in ("While the repository is private", "credential helper", "git+ssh://"):
+        assert stale not in README
+
+
+def test_links_are_absolute_so_they_work_on_pypi():
+    """PyPI shows this README; relative links and bare #anchors break there."""
+    targets = re.findall(r"\]\(([^)\s]+)\)", README)
+    assert targets
+    assert [t for t in targets if not t.startswith("https://")] == []
 
 
 def test_every_git_url_is_pinned_to_the_current_release():
@@ -66,6 +75,8 @@ def test_json_config_examples_are_valid():
         command = config["mcp"]["moodle"]["command"]
         assert "moodle-mcp-connector" in command
         assert config["mcp"]["moodle"]["environment"]["MOODLE_TOKEN"] == "{env:MOODLE_TOKEN}"
+    commands = [json.loads(b)["mcp"]["moodle"]["command"] for b in blocks]
+    assert ["uvx", "moodle-mcp-connector"] in commands  # the PyPI form
 
 
 PLUGIN_REPO_URL = "https://github.com/Teci-AI/moodle-local_mcpconnector"

@@ -19,13 +19,13 @@ enabled, create and edit course content.
 > or Moodle Pty Ltd. Moodle™ is a registered trademark of Moodle Pty Ltd.
 
 It is based on the MIT-licensed moodle-mcp-bridge project (version 1.7.0);
-see [LICENSE](LICENSE).
+see [LICENSE](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/LICENSE).
 
 ## Requirements
 
 - Python 3.11 or newer
 - A Moodle site with web services enabled and the REST protocol turned on
-- A web service token for a dedicated Moodle account (see [Security](#security))
+- A web service token for a dedicated Moodle account (see [Security](https://github.com/Teci-AI/moodle-mcp-connector#security))
 - For the write tools that create and edit pages, books, labels, URLs,
   sections and activities: the companion Moodle plugin
   **local_mcpconnector** (repository:
@@ -37,30 +37,28 @@ see [LICENSE](LICENSE).
 
 ## Installation
 
-This is release 0.1.0. Its plugin write tools need **local_mcpconnector 0.1.0
+This is release 0.1.1. Its plugin write tools need **local_mcpconnector 0.1.0
 (version 2026102123) or newer** on the Moodle site; get it from
 [moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector).
 
-Install it with pip, ideally into a virtual environment:
+Install it from PyPI with pip, ideally into a virtual environment:
 
 ```bash
-pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0"
+pip install moodle-mcp-connector
 ```
 
 Or run it without installing anything, with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uvx --from "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0" moodle-mcp-connector
+uvx moodle-mcp-connector
 ```
 
-**While the repository is private**, installing needs GitHub access to it.
-Either use the HTTPS URL above with a Git credential helper that is logged in
-to GitHub (for example Git Credential Manager, or `gh auth login` followed by
-`gh auth setup-git`), or use the SSH URL with a key that GitHub knows:
+To stay on this release, pin it: `pip install "moodle-mcp-connector==0.1.1"`
+or `uvx moodle-mcp-connector@0.1.1`. To install straight from GitHub instead,
+use the release tag:
 
 ```bash
-pip install "git+ssh://git@github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0"
-uvx --from "git+ssh://git@github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0" moodle-mcp-connector
+pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.1"
 ```
 
 pip installs the `moodle-mcp-connector` command. Both of these start the
@@ -72,8 +70,9 @@ python -m moodle_mcp_connector
 ```
 
 The server talks MCP over stdio. Started by hand, it waits silently for an MCP
-client; that is expected. Stop it with Ctrl+C. To upgrade, install again with
-the new release's tag.
+client; that is expected. Stop it with Ctrl+C. To upgrade, run
+`pip install --upgrade moodle-mcp-connector`; uv picks up a new release with
+`uvx moodle-mcp-connector@latest`.
 
 ## Configuration
 
@@ -87,7 +86,7 @@ precedence.
 | `MOODLE_URL` | yes | Base URL of the site, e.g. `https://moodle.example.edu` (no trailing slash needed). |
 | `MOODLE_TOKEN` | yes | Web service token. Never commit it. |
 | `MOODLE_ALLOW_WRITE` | no | `true` registers the write tools. Anything else, or unset, means read-only. |
-| `MOODLE_TOOLSET` | no | `content` registers only the content-focused tools (marked in the [tool table](#tools)). Unset or `all` registers every tool. Any other value stops the server with an error. |
+| `MOODLE_TOOLSET` | no | `content` registers only the content-focused tools (marked in the [tool table](https://github.com/Teci-AI/moodle-mcp-connector#tools)). Unset or `all` registers every tool. Any other value stops the server with an error. |
 
 Example `.env` (already listed in `.gitignore`):
 
@@ -104,7 +103,7 @@ First, on any site:
 
 1. *Site administration → General → Advanced features*: enable web services.
 2. *Site administration → Server → Web services → Manage protocols*: enable REST.
-3. Create a dedicated user for the agent (see [Security](#security)). Give it
+3. Create a dedicated user for the agent (see [Security](https://github.com/Teci-AI/moodle-mcp-connector#security)). Give it
    only the roles it needs, in the courses it should work on, and make sure
    it has the `webservice/rest:use` capability.
 
@@ -149,7 +148,7 @@ service instead:
 
 4. *Site administration → Server → Web services → External services*: add a
    custom service, add only the functions your tools need (see the
-   [tool tables](#tools)), and authorise the dedicated user. If you also want
+   [tool tables](https://github.com/Teci-AI/moodle-mcp-connector#tools)), and authorise the dedicated user. If you also want
    the plugin's write tools, add the `local_mcpconnector_*` functions you
    need.
 5. Tick **Can download files** on the service if you use `read_activity` or
@@ -191,10 +190,10 @@ lives in a virtual environment), use the full path to the executable, such as
 `["C:/Users/you/moodle-mcp/.venv/Scripts/moodle-mcp-connector.exe"]` or
 `["/home/you/moodle-mcp/.venv/bin/moodle-mcp-connector"]`.
 
-Or let uv fetch and run the release, with nothing installed beforehand. The
-first start takes a little longer while uv builds it; after that it runs
-from uv's cache. While the repository is private, the machine needs the
-GitHub access described under [Installation](#installation):
+Or let uv fetch and run it from PyPI, with nothing installed beforehand. The
+first start takes a little longer while uv downloads it; after that it runs
+from uv's cache. Use `"moodle-mcp-connector@0.1.1"` instead to pin this
+release:
 
 ```json
 {
@@ -202,11 +201,7 @@ GitHub access described under [Installation](#installation):
   "mcp": {
     "moodle": {
       "type": "local",
-      "command": [
-        "uvx", "--from",
-        "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.0",
-        "moodle-mcp-connector"
-      ],
+      "command": ["uvx", "moodle-mcp-connector"],
       "enabled": true,
       "environment": {
         "MOODLE_URL": "https://moodle.example.edu",
@@ -379,9 +374,9 @@ pytest
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a new tool, build the
+See [CONTRIBUTING.md](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/CONTRIBUTING.md) for how to add a new tool, build the
 package and run the live integration tests.
 
 ## License
 
-MIT; see [LICENSE](LICENSE).
+MIT; see [LICENSE](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/LICENSE).
