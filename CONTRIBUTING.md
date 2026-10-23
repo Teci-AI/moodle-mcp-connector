@@ -46,6 +46,63 @@ the repository, checks that `moodle-mcp-connector` and
 a short MCP session, and fails if the token ever appears in the output. Add
 `--installer uv` to install with uv instead of pip.
 
+## Releasing
+
+Releases are published by `.github/workflows/release.yml` with PyPI
+Trusted Publishing, so no PyPI token is stored anywhere.
+
+### One-time setup
+
+1. On https://pypi.org and https://test.pypi.org: *Your account → Publishing →
+   Add a new pending publisher* (it becomes a normal trusted publisher after
+   the first upload), with these exact values:
+
+   | Field | PyPI | TestPyPI |
+   |---|---|---|
+   | PyPI project name | `moodle-mcp-connector` | `moodle-mcp-connector` |
+   | Owner | `Teci-AI` | `Teci-AI` |
+   | Repository name | `moodle-mcp-connector` | `moodle-mcp-connector` |
+   | Workflow name | `release.yml` | `release.yml` |
+   | Environment name | `pypi` | `testpypi` |
+
+2. On GitHub, *Settings → Environments*: create `pypi`, with yourself as a
+   **required reviewer** so every PyPI upload waits for approval, and
+   `testpypi`.
+
+### Dry run on TestPyPI
+
+*Actions → Release → Run workflow* on `main`. It checks the version and its
+CHANGES.md section, runs the tests, builds and smoke-tests the wheel, and
+uploads it to TestPyPI. A version can be uploaded only once, so repeated dry
+runs of the same version keep the files from the first one. Try it in a clean
+virtual environment:
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple moodle-mcp-connector==X.Y.Z
+```
+
+### Release
+
+1. Set the new version in `pyproject.toml` (the only place it is written).
+2. Add a `## X.Y.Z (YYYY-MM-DD)` section to `CHANGES.md`. It becomes the
+   GitHub release notes, so use absolute links.
+3. Update the version in the README's pinned install commands; the tests fail
+   until it matches.
+4. Commit, then tag and push:
+
+   ```bash
+   git tag -a vX.Y.Z -m "moodle-mcp-connector X.Y.Z"
+   git push origin main vX.Y.Z
+   ```
+
+5. Approve the `pypi` deployment in the workflow run. The workflow publishes to
+   PyPI first and creates the GitHub release (with the wheel and sdist) only
+   after that succeeds. Versions below 1.0.0 are marked as pre-releases on
+   GitHub; on PyPI they are normal releases.
+
+PyPI never lets a version be uploaded twice, even after deleting it. If a
+release goes wrong, fix it and release the next patch version.
+
 ## Live integration tests
 
 `tests/integration` runs every plugin tool against a real Moodle site,

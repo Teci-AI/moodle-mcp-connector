@@ -84,6 +84,19 @@ def test_cli_success_writes_notes_and_github_outputs(tmp_path, monkeypatch):
     assert "prerelease=true\n" in out.read_text(encoding="utf-8")  # 0.x
 
 
+def test_cli_without_tag_checks_version_and_notes_only(tmp_path, monkeypatch):
+    """Manual (TestPyPI) runs have no tag; the notes must still exist."""
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.1.0"\n')
+    (tmp_path / "CHANGES.md").write_text(CHANGES)
+    notes = tmp_path / "notes.md"
+    assert rc.main(["--root", str(tmp_path), "--notes-out", str(notes)]) == 0
+    assert notes.read_text(encoding="utf-8") == "First release.\n\n- A tool.\n"
+
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n')
+    assert rc.main(["--root", str(tmp_path)]) == 1  # no CHANGES section for 0.3.0
+
+
 def test_cli_failure_reports_a_github_error(tmp_path, capsys):
     (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.1.0"\n')
     (tmp_path / "CHANGES.md").write_text(CHANGES)

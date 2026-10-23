@@ -18,8 +18,12 @@ CLASSIFIER_VERSIONS = sorted(
     c.rsplit(":: ", 1)[1] for c in PROJECT["classifiers"]
     if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", c)
 )
-# Minimum major versions: older releases run on Node.js 20.
-MIN_ACTION_MAJOR = {"actions/checkout": 5, "actions/setup-python": 6}
+# Minimum major versions: older releases run on Node.js 20. (Checked when
+# adopted: these majors use node24; the PyPI action is a Docker-based
+# composite action on PyPA's maintained release/v1 branch.)
+MIN_ACTION_MAJOR = {"actions/checkout": 5, "actions/setup-python": 6,
+                    "actions/upload-artifact": 7, "actions/download-artifact": 8}
+PINNED_REFS = {"pypa/gh-action-pypi-publish": "release/v1"}
 
 
 def workflow_files() -> list[Path]:
@@ -35,11 +39,16 @@ def job(text: str, name: str) -> str:
 
 @pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
 def test_only_current_actions_are_used(path):
-    uses = re.findall(r"uses:\s*([\w.-]+/[\w.-]+)@v(\d+)", path.read_text(encoding="utf-8"))
+    uses = re.findall(r"uses:\s*([\w.-]+/[\w.-]+)@(\S+)", path.read_text(encoding="utf-8"))
     assert uses, "no actions found"
-    for action, major in uses:
+    for action, ref in uses:
+        if action in PINNED_REFS:
+            assert ref == PINNED_REFS[action], f"{action}@{ref}"
+            continue
         assert action in MIN_ACTION_MAJOR, f"unexpected action {action}"
-        assert int(major) >= MIN_ACTION_MAJOR[action], f"{action}@v{major} is too old"
+        major = re.fullmatch(r"v(\d+)", ref)
+        assert major, f"{action}@{ref} should use a major version tag"
+        assert int(major.group(1)) >= MIN_ACTION_MAJOR[action], f"{action}@{ref} is too old"
 
 
 @pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
@@ -79,38 +88,73 @@ def test_lowest_dependencies_job_uses_oldest_python_and_floors():
 RELEASE = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
 
 
-def test_release_runs_only_on_version_tags():
+RELEASE_JOBS = {name: job(RELEASE, name)
+                for name in ("build", "publish-testpypi", "publish-pypi", "github-release")}
+ON_TAG = "if: github.event_name == 'push' && github.ref_type == 'tag'"
+ON_MANUAL = "if: github.event_name == 'workflow_dispatch'"
+
+
+def test_release_runs_on_version_tags_and_by_hand_only():
     trigger = RELEASE.split("\non:", 1)[1].split("\npermissions:", 1)[0]
     assert re.search(r'push:\n\s+tags: \["v\*"\]', trigger)
+    assert "workflow_dispatch:" in trigger
     assert "branches" not in trigger and "pull_request" not in trigger
 
 
-def test_release_permissions_and_token():
-    assert re.search(r"^permissions:\n  contents: write\n", RELEASE, re.M)
-    assert "GH_TOKEN: ${{ github.token }}" in RELEASE
+def test_release_permissions_are_least_privilege():
+    assert re.search(r"^permissions:\n  contents: read\n", RELEASE, re.M)
+    # Only the publishing jobs may request PyPI's OIDC token...
+    for name, text in RELEASE_JOBS.items():
+        has_oidc = "id-token: write" in text
+        assert has_oidc == name.startswith("publish-"), name
+    # ...and only the GitHub release job may write to the repository.
+    for name, text in RELEASE_JOBS.items():
+        assert ("contents: write" in text) == (name == "github-release"), name
+    assert "GH_TOKEN: ${{ github.token }}" in RELEASE_JOBS["github-release"]
 
 
-def test_release_checks_before_building_and_publishing():
-    steps = ["scripts/release_check.py", "python -m pytest", "python -m build",
+def test_release_build_checks_tests_and_builds_in_order():
+    build = RELEASE_JOBS["build"]
+    steps = ["scripts/release_check.py --tag \"$TAG\"", "python -m pytest", "python -m build",
              "twine check --strict dist/*", "scripts/check_wheel.py dist",
-             "gh release create"]
-    positions = [RELEASE.index(step) for step in steps]
+             "actions/upload-artifact"]
+    positions = [build.index(step) for step in steps]
     assert positions == sorted(positions), "steps are out of order"
-    assert '--tag "$GITHUB_REF_NAME"' in RELEASE
+    # The tag is only checked for pushed tags; manual runs check version and notes.
+    assert "TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}" in build
+    assert "python scripts/release_check.py --notes-out release-notes.md" in build
 
 
-def test_release_attaches_both_files_and_marks_prereleases():
-    create = RELEASE[RELEASE.index("gh release create"):]
-    assert 'gh release create "$TAG" dist/*' in create
-    assert '--notes-file "$RUNNER_TEMP/release-notes.md"' in create
-    assert "--verify-tag" in create
-    assert "PRERELEASE: ${{ steps.check.outputs.prerelease }}" in RELEASE
-    assert 'if [ "$PRERELEASE" = "true" ]; then\n            flags+=(--prerelease)' in RELEASE
+def test_pypi_publishing_only_on_tags_after_build_with_approval_environment():
+    pypi = RELEASE_JOBS["publish-pypi"]
+    assert ON_TAG in pypi and "needs: build" in pypi
+    assert "name: pypi\n" in pypi
+    assert "uses: pypa/gh-action-pypi-publish@release/v1" in pypi
+    assert "repository-url" not in pypi  # the real PyPI
 
 
-def test_release_never_publishes_to_pypi():
-    for forbidden in ("twine upload", "pypi", "PYPI", "gh-action-pypi-publish"):
+def test_testpypi_publishing_only_on_manual_runs():
+    test = RELEASE_JOBS["publish-testpypi"]
+    assert ON_MANUAL in test and "needs: build" in test
+    assert "name: testpypi\n" in test
+    assert "repository-url: https://test.pypi.org/legacy/" in test
+    assert "skip-existing: true" in test
+
+
+def test_publishing_uses_trusted_publishing_not_tokens():
+    for forbidden in ("password:", "secrets.", "twine upload", "PYPI_API_TOKEN"):
         assert forbidden not in RELEASE
+
+
+def test_github_release_comes_after_pypi_with_both_files():
+    release = RELEASE_JOBS["github-release"]
+    assert ON_TAG in release
+    assert "needs: [build, publish-pypi]" in release
+    assert 'gh release create "$TAG" dist/*' in release
+    assert "--notes-file release-notes.md" in release
+    assert "--verify-tag" in release
+    assert "PRERELEASE: ${{ needs.build.outputs.prerelease }}" in release
+    assert 'if [ "$PRERELEASE" = "true" ]; then\n            flags+=(--prerelease)' in release
 
 
 def test_default_branch_is_main_everywhere():
