@@ -28,7 +28,8 @@ see [LICENSE](LICENSE).
 - A web service token for a dedicated Moodle account (see [Security](#security))
 - For the write tools that create and edit pages, books, labels, URLs,
   sections and activities: the companion Moodle plugin
-  **local_mcpconnector** (repository: moodle-local_mcpconnector), release
+  **local_mcpconnector** (repository:
+  [moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector)), release
   0.1.0 (version 2026102123) or later, which has been tested on Moodle 5.3.
   `server_info` reports the installed plugin version and whether it is
   compatible. Read tools and the core-Moodle write tools (courses, users,
@@ -37,7 +38,8 @@ see [LICENSE](LICENSE).
 ## Installation
 
 This is release 0.1.0. Its plugin write tools need **local_mcpconnector 0.1.0
-(version 2026102123) or newer** on the Moodle site.
+(version 2026102123) or newer** on the Moodle site; get it from
+[moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector).
 
 Install it with pip, ideally into a virtual environment:
 
@@ -126,7 +128,9 @@ mod_lesson_get_pages
 
 It is disabled by default and limited to authorised users. To use it:
 
-4. Install the plugin (*Site administration → Plugins → Install plugins*, or
+4. Install the plugin, downloaded from
+   [moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector)
+   (*Site administration → Plugins → Install plugins*, or
    unpack it into `local/mcpconnector`) and complete the upgrade.
 5. *Site administration → Server → Web services → External services*: edit
    **MCP Connector Service**, tick **Enabled**, and save.
@@ -275,7 +279,7 @@ cache it. When an optional `courseid`/`courseids` argument is omitted, they use
 ### Write tools (`MOODLE_ALLOW_WRITE=true`)
 
 Tools marked **plugin** need the companion plugin
-[moodle-local_mcpconnector](#requirements), which provides the
+[moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector), which provides the
 `local_mcpconnector_*` functions.
 
 Plugin version 2026102123 provides every function below. If the site runs an

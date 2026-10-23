@@ -68,6 +68,17 @@ def test_json_config_examples_are_valid():
         assert config["mcp"]["moodle"]["environment"]["MOODLE_TOKEN"] == "{env:MOODLE_TOKEN}"
 
 
+PLUGIN_REPO_URL = "https://github.com/Teci-AI/moodle-local_mcpconnector"
+
+
+def test_every_plugin_repository_mention_is_a_link():
+    """Readers should reach the companion plugin in one click."""
+    linked = f"[moodle-local_mcpconnector]({PLUGIN_REPO_URL})"
+    assert linked in README
+    without_links = README.replace(linked, "").replace(PLUGIN_REPO_URL, "")
+    assert "moodle-local_mcpconnector" not in without_links
+
+
 def test_every_tool_has_exactly_one_row():
     names = [name for name, _, _ in ROWS]
     assert len(names) == len(set(names)), "duplicate rows"
