@@ -503,14 +503,54 @@ async def search_courses(field: str, value: str) -> dict:
     return await _call("core_course_get_courses_by_field", {"field": field, "value": value})
 
 
-@tool()
-async def get_course_content(courseid: int) -> list:
-    """Get the full section/activity structure of one course.
+def _outline_section(section: dict) -> dict:
+    """One section of core_course_get_contents, reduced to what identifies it.
 
-    Read-only. Returns sections, each with the modules (activities/resources)
-    inside it — useful for seeing what already exists before adding content.
+    Moodle's full reply repeats a dozen fields per activity (customdata,
+    dates, contents, ...); a course of 30 sections runs past 100 KB, more
+    than MCP clients pass to a model. Names arrive HTML-escaped ("&amp;").
     """
-    return await _call("core_course_get_contents", {"courseid": courseid})
+    return {
+        "section": section.get("section"),
+        "id": section.get("id"),
+        "name": _htmllib.unescape(section.get("name") or ""),
+        "visible": section.get("visible"),
+        "modules": [
+            {
+                "id": m.get("id"),
+                "name": _htmllib.unescape(m.get("name") or ""),
+                "modname": m.get("modname"),
+                "instance": m.get("instance"),
+                "visible": m.get("visible"),
+            }
+            for m in section.get("modules", [])
+        ],
+    }
+
+
+@tool()
+async def get_course_content(
+    courseid: int,
+    sections: list[int] | None = None,
+    full: bool = False,
+) -> list:
+    """Get the sections of one course and the activities in each.
+
+    Read-only. By default returns a compact outline: for each section its
+    number (`section`, the value other tools take), `id`, `name` and
+    `visible`, and its `modules` with `id` (the activity's cmid), `name`,
+    `modname` (page, quiz, lesson, ...), `instance` and `visible`.
+
+    `sections` limits the reply to those section numbers, e.g. [3, 4].
+    `full=True` returns Moodle's complete data (descriptions, files, dates)
+    instead; it is large, so combine it with `sections` to read a few
+    sections at a time.
+    """
+    result = await _call("core_course_get_contents", {"courseid": courseid})
+    if sections is not None:
+        wanted = set(sections)
+        result = [s for s in result if s.get("section") in wanted]
+    return result if full else [_outline_section(s) for s in result]
 
 
 @tool()
@@ -1650,17 +1690,17 @@ async def _download_text(client: httpx.AsyncClient, fileurl: str) -> str:
     return (await _fetch_file(client, fileurl)).text
 
 
-async def _find_module(course_id: int, cmid: int) -> dict:
+async def _find_module(courseid: int, cmid: int) -> dict:
     """Return the core_course_get_contents entry for one course module."""
     sections = await _call(
         "core_course_get_contents",
-        {"courseid": course_id, "options": [{"name": "cmid", "value": cmid}]},
+        {"courseid": courseid, "options": [{"name": "cmid", "value": cmid}]},
     )
     for sec in sections or []:
         for m in sec.get("modules", []):
             if m.get("id") == cmid:
                 return m
-    raise MoodleError(f"Activity cmid {cmid} not found in course {course_id}.")
+    raise MoodleError(f"Activity cmid {cmid} not found in course {courseid}.")
 
 
 def _html_files(module: dict) -> list[dict]:
@@ -1700,7 +1740,7 @@ def _book_chapters(module: dict) -> list[dict]:
 
 
 @tool()
-async def read_activity(course_id: int, cmid: int) -> dict:
+async def read_activity(courseid: int, cmid: int) -> dict:
     """Read the full text of a Page, Book (all chapters) or Label.
 
     Read-only. `cmid` is the activity's course module id (from
@@ -1709,10 +1749,10 @@ async def read_activity(course_id: int, cmid: int) -> dict:
     contents order, both separately under `chapters` and joined under `text`.
     The web service must allow file downloads ("Can download files").
     """
-    module = await _find_module(course_id, cmid)
+    module = await _find_module(courseid, cmid)
     modname = module.get("modname")
     result: dict[str, Any] = {
-        "course_id": course_id,
+        "courseid": courseid,
         "cmid": cmid,
         "modname": modname,
         "name": module.get("name"),
@@ -1763,7 +1803,7 @@ async def read_activity(course_id: int, cmid: int) -> dict:
 
 
 @tool()
-async def read_lesson(course_id: int, cmid: int) -> dict:
+async def read_lesson(courseid: int, cmid: int) -> dict:
     """Read the text of every page in a Lesson activity, in lesson order.
 
     Read-only. `cmid` is the lesson's course module id. Uses Moodle's core
@@ -1772,12 +1812,12 @@ async def read_lesson(course_id: int, cmid: int) -> dict:
     page, its title, type (e.g. Content, Multichoice) and plain-text contents.
     Full page contents generally need a teacher/manager role on the course.
     """
-    data = await _call("mod_lesson_get_lessons_by_courses", {"courseids": [course_id]})
+    data = await _call("mod_lesson_get_lessons_by_courses", {"courseids": [courseid]})
     lesson = next(
         (l for l in data.get("lessons", []) if l.get("coursemodule") == cmid), None
     )
     if not lesson:
-        raise MoodleError(f"Lesson cmid {cmid} not found in course {course_id}.")
+        raise MoodleError(f"Lesson cmid {cmid} not found in course {courseid}.")
 
     pages_data = await _call("mod_lesson_get_pages", {"lessonid": lesson["id"]})
     pages = {p["page"]["id"]: p["page"] for p in pages_data.get("pages", [])}
@@ -1794,7 +1834,7 @@ async def read_lesson(course_id: int, cmid: int) -> dict:
     ordered.extend(p for pid, p in sorted(pages.items()) if pid not in seen)
 
     return {
-        "course_id": course_id,
+        "courseid": courseid,
         "cmid": cmid,
         "lessonid": lesson["id"],
         "name": lesson.get("name"),

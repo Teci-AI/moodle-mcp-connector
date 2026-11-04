@@ -178,12 +178,12 @@ def test_create_read_and_update_page(course, sections):
     page = call("create_page", courseid=course, section=sections[0], name="Live page",
                 content="<p>Hello from the <b>live</b> test.</p>")
     assert_ids(page, "cmid", "instanceid")
-    text = call("read_activity", course_id=course, cmid=page["cmid"])["text"]
+    text = call("read_activity", courseid=course, cmid=page["cmid"])["text"]
     assert "Hello from the live test." in text
 
     updated = call("update_page", cmid=page["cmid"], content="<p>Updated page text.</p>")
     assert updated["cmid"] == page["cmid"] and updated["success"] is True
-    text = call("read_activity", course_id=course, cmid=page["cmid"])["text"]
+    text = call("read_activity", courseid=course, cmid=page["cmid"])["text"]
     assert "Updated page text." in text and "Hello from" not in text
 
 
@@ -191,7 +191,7 @@ def test_create_and_read_book(course, sections):
     book = call("create_book", courseid=course, section=sections[0], name="Live book",
                 chaptertitle="Chapter one", chaptercontent="<p>Book chapter text.</p>")
     assert_ids(book, "cmid", "instanceid", "chapterid")
-    read = call("read_activity", course_id=course, cmid=book["cmid"])
+    read = call("read_activity", courseid=course, cmid=book["cmid"])
     assert read["chapters"][0]["title"] == "Chapter one"
     assert "Book chapter text." in read["text"]
 
@@ -201,7 +201,7 @@ def test_create_and_read_label(course, sections):
                  content="<p>Label text for the live test.</p>")
     assert_ids(label, "cmid", "instanceid")
     assert "Label text for the live test." in call(
-        "read_activity", course_id=course, cmid=label["cmid"])["text"]
+        "read_activity", courseid=course, cmid=label["cmid"])["text"]
     [mod] = [m for _, m in modules(course) if m["id"] == label["cmid"]]
     assert mod["name"].strip(), "a label with no name should get one built from its text"
 
