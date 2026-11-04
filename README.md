@@ -37,7 +37,7 @@ see [LICENSE](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/LICENSE)
 
 ## Installation
 
-This is release 0.1.1. Its plugin write tools need **local_mcpconnector 0.1.0
+This is release 0.2.0. Its plugin write tools need **local_mcpconnector 0.1.0
 (version 2026102123) or newer** on the Moodle site; get it from
 [moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector).
 
@@ -53,12 +53,12 @@ Or run it without installing anything, with [uv](https://docs.astral.sh/uv/):
 uvx moodle-mcp-connector
 ```
 
-To stay on this release, pin it: `pip install "moodle-mcp-connector==0.1.1"`
-or `uvx moodle-mcp-connector@0.1.1`. To install straight from GitHub instead,
+To stay on this release, pin it: `pip install "moodle-mcp-connector==0.2.0"`
+or `uvx moodle-mcp-connector@0.2.0`. To install straight from GitHub instead,
 use the release tag:
 
 ```bash
-pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.1.1"
+pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.2.0"
 ```
 
 pip installs the `moodle-mcp-connector` command. Both of these start the
@@ -192,7 +192,7 @@ lives in a virtual environment), use the full path to the executable, such as
 
 Or let uv fetch and run it from PyPI, with nothing installed beforehand. The
 first start takes a little longer while uv downloads it; after that it runs
-from uv's cache. Use `"moodle-mcp-connector@0.1.1"` instead to pin this
+from uv's cache. Use `"moodle-mcp-connector@0.2.0"` instead to pin this
 release:
 
 ```json
@@ -234,7 +234,7 @@ cache it. When an optional `courseid`/`courseids` argument is omitted, they use
 | `list_courses` | ✓ | `core_course_get_courses` |
 | `search_courses` | ✓ | `core_course_get_courses_by_field` |
 | `get_my_courses` | ✓ | `core_webservice_get_site_info`, `core_enrol_get_users_courses` |
-| `get_course_content` | ✓ | `core_course_get_contents` |
+| `get_course_content` | ✓ | `core_course_get_contents`; returns a compact outline unless `full=True`, optionally only some `sections` |
 | `list_quizzes` | ✓ | `mod_quiz_get_quizzes_by_courses` |
 | `search_course_materials` | ✓ | `core_course_get_contents`; without `courseid` also `core_webservice_get_site_info`, `core_enrol_get_users_courses` |
 | `read_activity` | ✓ | `core_course_get_contents`, then downloads the activity's `.html` files from `webservice/pluginfile.php` (needs **Can download files**) |

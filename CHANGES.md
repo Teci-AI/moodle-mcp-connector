@@ -1,5 +1,34 @@
 # Changes
 
+## 0.2.0 (2026-11-04)
+
+Smaller course structures for MCP clients, and one consistent name for the
+course parameter. Both changes can break existing callers; see below.
+
+- **`get_course_content` returns a compact outline by default.** For each
+  section: its number (`section`), `id`, `name` and `visible`, and its
+  `modules` with `id` (the cmid), `name`, `modname`, `instance` and
+  `visible`. Names are no longer HTML-escaped (`&` instead of `&amp;`).
+  Moodle's full reply for a 30-section course is over 100 KB, which MCP
+  clients such as OpenCode cut before the model sees it; the outline of the
+  same course is about 13 KB. **Breaking:** pass `full=True` to get Moodle's
+  complete data, as 0.1.x returned it.
+- **`get_course_content` can return only some sections:** `sections=[12, 13]`
+  limits the reply to those section numbers, in outline or full form.
+- **`read_activity` and `read_lesson` take `courseid`**, like every other
+  tool, instead of `course_id`; their results use `courseid` too. Models copy
+  parameter names between tools, and the one-off spelling made them send the
+  wrong one. **Breaking:** callers passing `course_id` must rename it.
+
+What it contains, as in 0.1.1: **90 tools**, 41 read tools and 49 write
+tools; `MOODLE_ALLOW_WRITE=true` enables the write tools, and
+`MOODLE_TOOLSET=content` limits the server to 10 read tools, plus 17 write
+tools when writes are enabled.
+
+Requirements: Python 3.11 or newer, and for the plugin write tools
+**local_mcpconnector 0.1.0 or newer (version 2026102123)**, from the
+[moodle-local_mcpconnector releases](https://github.com/Teci-AI/moodle-local_mcpconnector/releases).
+
 ## 0.1.1 (2026-10-23)
 
 First release on PyPI. Install it with `pip install moodle-mcp-connector`, or
