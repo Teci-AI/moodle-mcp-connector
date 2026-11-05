@@ -1,5 +1,28 @@
 # Changes
 
+## 0.3.1 (2026-11-05)
+
+Documentation only: the README shows how to connect any MCP client, not just
+OpenCode.
+
+- **New section "Connecting an MCP client"**, replacing "OpenCode
+  configuration": the command and environment every client needs, then
+  ready-to-copy configurations for Claude Code, Claude Desktop and OpenCode,
+  and where other clients take the same settings.
+- The OpenCode example now runs the server with `uvx moodle-mcp-connector`,
+  as the other examples do.
+- How to fix `uvx` failing with `invalid peer certificate: UnknownIssuer` on
+  networks that inspect HTTPS traffic (`--system-certs`).
+
+What it contains, unchanged from 0.3.0: **90 tools**, 41 read tools and 49
+write tools; `MOODLE_ALLOW_WRITE=true` enables the write tools, and
+`MOODLE_TOOLSET=content` limits the server to 10 read tools, plus 17 write
+tools when writes are enabled.
+
+Requirements: Python 3.11 or newer, and for the plugin write tools
+**local_mcp_connector 2.0.0 or newer (version 2026110500)**, from the
+[moodle-local_mcp_connector releases](https://github.com/Teci-AI/moodle-local_mcp_connector/releases).
+
 ## 0.3.0 (2026-11-05)
 
 Follows the companion plugin's new component name. **Breaking:** this

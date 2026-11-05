@@ -39,7 +39,7 @@ see [LICENSE](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/LICENSE)
 
 ## Installation
 
-This is release 0.3.0. Its plugin write tools need **local_mcp_connector 2.0.0
+This is release 0.3.1. Its plugin write tools need **local_mcp_connector 2.0.0
 (version 2026110500) or newer** on the Moodle site; get it from
 [moodle-local_mcp_connector](https://github.com/Teci-AI/moodle-local_mcp_connector).
 
@@ -55,12 +55,12 @@ Or run it without installing anything, with [uv](https://docs.astral.sh/uv/):
 uvx moodle-mcp-connector
 ```
 
-To stay on this release, pin it: `pip install "moodle-mcp-connector==0.3.0"`
-or `uvx moodle-mcp-connector@0.3.0`. To install straight from GitHub instead,
+To stay on this release, pin it: `pip install "moodle-mcp-connector==0.3.1"`
+or `uvx moodle-mcp-connector@0.3.1`. To install straight from GitHub instead,
 use the release tag:
 
 ```bash
-pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.3.0"
+pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.3.1"
 ```
 
 pip installs the `moodle-mcp-connector` command. Both of these start the
@@ -160,25 +160,45 @@ service instead:
 A token belongs to exactly one service, so a token for the ready-made service
 can only reach the content tools, whatever `MOODLE_TOOLSET` says.
 
-## OpenCode configuration
+## Connecting an MCP client
 
-Add the server to `opencode.json` (project) or `~/.config/opencode/opencode.json`
-(global). `{env:MOODLE_TOKEN}` reads the token from your shell environment so it
-never lands in the config file:
+The server works with any MCP client that starts local servers over stdio
+(Claude Code, Claude Desktop, OpenCode, Cursor, VS Code and others). Every
+client needs the same two things:
 
-With the command installed by pip:
+- **The command:** `uvx moodle-mcp-connector`, which fetches the server from
+  PyPI and runs it with nothing installed beforehand (the first start takes a
+  little longer while uv downloads it; after that it runs from uv's cache).
+  Use `uvx moodle-mcp-connector@0.3.1` to pin this release, or
+  `moodle-mcp-connector` if you installed it with pip; when that command is
+  not on the client's `PATH` (for example inside a virtual environment), give
+  the full path, such as
+  `C:/Users/you/moodle-mcp/.venv/Scripts/moodle-mcp-connector.exe` or
+  `/home/you/moodle-mcp/.venv/bin/moodle-mcp-connector`.
+- **The environment:** `MOODLE_URL`, `MOODLE_TOKEN`, and optionally
+  `MOODLE_TOOLSET` and `MOODLE_ALLOW_WRITE` (see
+  [Configuration](https://github.com/Teci-AI/moodle-mcp-connector#configuration)).
+  Where the client can read the token from your shell environment, let it,
+  so the token never lands in a config file.
+
+The examples below run the content tool set, read-only. Set
+`MOODLE_ALLOW_WRITE` to `"true"` to let the agent author content.
+
+### Claude Code
+
+Add a `.mcp.json` file to your project (Claude Code asks you to approve a
+project's servers the first time). `${MOODLE_TOKEN}` is read from your shell
+environment:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
+  "mcpServers": {
     "moodle": {
-      "type": "local",
-      "command": ["moodle-mcp-connector"],
-      "enabled": true,
-      "environment": {
+      "command": "uvx",
+      "args": ["moodle-mcp-connector"],
+      "env": {
         "MOODLE_URL": "https://moodle.example.edu",
-        "MOODLE_TOKEN": "{env:MOODLE_TOKEN}",
+        "MOODLE_TOKEN": "${MOODLE_TOKEN}",
         "MOODLE_TOOLSET": "content",
         "MOODLE_ALLOW_WRITE": "false"
       }
@@ -187,24 +207,51 @@ With the command installed by pip:
 }
 ```
 
-If `moodle-mcp-connector` is not on OpenCode's `PATH` (for example because it
-lives in a virtual environment), use the full path to the executable, such as
-`["C:/Users/you/moodle-mcp/.venv/Scripts/moodle-mcp-connector.exe"]` or
-`["/home/you/moodle-mcp/.venv/bin/moodle-mcp-connector"]`.
+To add it for yourself in every project instead (stored in your own Claude
+Code settings, token included):
 
-Or let uv fetch and run it from PyPI, with nothing installed beforehand. The
-first start takes a little longer while uv downloads it; after that it runs
-from uv's cache. Use `"moodle-mcp-connector@0.3.0"` instead to pin this
-release:
+```bash
+claude mcp add moodle --scope user --env MOODLE_URL=https://moodle.example.edu --env MOODLE_TOKEN=paste-your-token-here --env MOODLE_TOOLSET=content --env MOODLE_ALLOW_WRITE=false -- uvx moodle-mcp-connector
+```
+
+### Claude Desktop
+
+In Claude Desktop, open *Settings → Developer → Edit Config* and add the
+server to `mcpServers` in `claude_desktop_config.json`, then restart Claude
+Desktop. This file holds the token itself, so keep it private:
+
+```json
+{
+  "mcpServers": {
+    "moodle": {
+      "command": "uvx",
+      "args": ["moodle-mcp-connector"],
+      "env": {
+        "MOODLE_URL": "https://moodle.example.edu",
+        "MOODLE_TOKEN": "paste-your-token-here",
+        "MOODLE_TOOLSET": "content",
+        "MOODLE_ALLOW_WRITE": "false"
+      }
+    }
+  }
+}
+```
+
+### OpenCode
+
+Add the server to `opencode.json` (project) or
+`~/.config/opencode/opencode.json` (global). `{env:MOODLE_TOKEN}` is read
+from your shell environment:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "moodle": {
+      "enabled": true,
       "type": "local",
+      "codemode": false,
       "command": ["uvx", "moodle-mcp-connector"],
-      "enabled": true,
       "environment": {
         "MOODLE_URL": "https://moodle.example.edu",
         "MOODLE_TOKEN": "{env:MOODLE_TOKEN}",
@@ -215,6 +262,22 @@ release:
   }
 }
 ```
+
+### Other clients
+
+Most clients take the same `command`, `args` and `env` as the Claude
+examples, under their own key (for example `servers` in VS Code's
+`mcp.json`). See your client's documentation for where its configuration
+lives.
+
+### If uvx cannot download the server
+
+On networks or computers that inspect HTTPS traffic (some antivirus programs
+and company proxies do), `uvx` can fail with `invalid peer certificate:
+UnknownIssuer`. Let it use the system's certificates by adding
+`--system-certs` before the package name: `"args": ["--system-certs",
+"moodle-mcp-connector"]`, or `["uvx", "--system-certs",
+"moodle-mcp-connector"]` in OpenCode.
 
 ## Tools
 

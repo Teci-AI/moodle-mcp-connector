@@ -67,16 +67,32 @@ def test_installation_states_the_plugin_version():
     assert f"version {server.MIN_PLUGIN_VERSION}" in install
 
 
+# What a config example may put in MOODLE_TOKEN: a reference to the shell
+# environment in the client's own syntax, or an obvious placeholder.
+TOKEN_PLACEHOLDERS = {"{env:MOODLE_TOKEN}", "${MOODLE_TOKEN}", "paste-your-token-here"}
+
+
+def _server_command_and_env(config: dict) -> tuple[list[str], dict]:
+    """The server's full command and environment, in OpenCode's or the mcpServers shape."""
+    if "mcp" in config:  # OpenCode
+        server_config = config["mcp"]["moodle"]
+        return server_config["command"], server_config["environment"]
+    server_config = config["mcpServers"]["moodle"]  # Claude Code, Claude Desktop and most others
+    return [server_config["command"], *server_config["args"]], server_config["env"]
+
+
 def test_json_config_examples_are_valid():
-    blocks = re.findall(r"```json\n(.*?)```", README, re.S)
-    assert len(blocks) >= 2
+    section = readme_section("Connecting an MCP client")
+    blocks = re.findall(r"```json\n(.*?)```", section, re.S)
+    assert len(blocks) >= 3
+    commands = []
     for block in blocks:
-        config = json.loads(block)
-        command = config["mcp"]["moodle"]["command"]
-        assert "moodle-mcp-connector" in command
-        assert config["mcp"]["moodle"]["environment"]["MOODLE_TOKEN"] == "{env:MOODLE_TOKEN}"
-    commands = [json.loads(b)["mcp"]["moodle"]["command"] for b in blocks]
-    assert ["uvx", "moodle-mcp-connector"] in commands  # the PyPI form
+        command, env = _server_command_and_env(json.loads(block))
+        commands.append(command)
+        assert set(env) == {"MOODLE_URL", "MOODLE_TOKEN", "MOODLE_TOOLSET", "MOODLE_ALLOW_WRITE"}
+        assert env["MOODLE_TOKEN"] in TOKEN_PLACEHOLDERS
+    assert all(c == ["uvx", "moodle-mcp-connector"] for c in commands)  # the PyPI form
+    assert f"uvx moodle-mcp-connector@{VERSION}" in section  # how to pin this release
 
 
 PLUGIN_REPO_URL = "https://github.com/Teci-AI/moodle-local_mcp_connector"
