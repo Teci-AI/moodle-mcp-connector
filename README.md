@@ -28,18 +28,20 @@ see [LICENSE](https://github.com/Teci-AI/moodle-mcp-connector/blob/main/LICENSE)
 - A web service token for a dedicated Moodle account (see [Security](https://github.com/Teci-AI/moodle-mcp-connector#security))
 - For the write tools that create and edit pages, books, labels, URLs,
   sections and activities: the companion Moodle plugin
-  **local_mcpconnector** (repository:
-  [moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector)), release
-  0.1.0 (version 2026102123) or later, which has been tested on Moodle 5.3.
+  **MCP Connector** (`local_mcp_connector`, repository:
+  [moodle-local_mcp_connector](https://github.com/Teci-AI/moodle-local_mcp_connector)), release
+  2.0.0 (version 2026110500) or later, which has been tested on Moodle 5.0 to 5.3.
+  It was called local_mcpconnector up to its release 1.0.0; this release of
+  the server only works with the renamed plugin.
   `server_info` reports the installed plugin version and whether it is
   compatible. Read tools and the core-Moodle write tools (courses, users,
   enrolments, grading and so on) work without it.
 
 ## Installation
 
-This is release 0.2.0. Its plugin write tools need **local_mcpconnector 0.1.0
-(version 2026102123) or newer** on the Moodle site; get it from
-[moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector).
+This is release 0.3.0. Its plugin write tools need **local_mcp_connector 2.0.0
+(version 2026110500) or newer** on the Moodle site; get it from
+[moodle-local_mcp_connector](https://github.com/Teci-AI/moodle-local_mcp_connector).
 
 Install it from PyPI with pip, ideally into a virtual environment:
 
@@ -53,12 +55,12 @@ Or run it without installing anything, with [uv](https://docs.astral.sh/uv/):
 uvx moodle-mcp-connector
 ```
 
-To stay on this release, pin it: `pip install "moodle-mcp-connector==0.2.0"`
-or `uvx moodle-mcp-connector@0.2.0`. To install straight from GitHub instead,
+To stay on this release, pin it: `pip install "moodle-mcp-connector==0.3.0"`
+or `uvx moodle-mcp-connector@0.3.0`. To install straight from GitHub instead,
 use the release tag:
 
 ```bash
-pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.2.0"
+pip install "git+https://github.com/Teci-AI/moodle-mcp-connector.git@v0.3.0"
 ```
 
 pip installs the `moodle-mcp-connector` command. Both of these start the
@@ -109,8 +111,8 @@ First, on any site:
 
 #### Content tool set: use the plugin's ready-made service
 
-The local_mcpconnector plugin ships a web service called **MCP Connector
-Service** (short name `mcpconnector`). It contains every `local_mcpconnector_*`
+The local_mcp_connector plugin ships a web service called **MCP Connector
+Service** (short name `mcp_connector`). It contains every `local_mcp_connector_*`
 function plus the 8 core read functions the content tool set uses, with file
 downloads allowed:
 
@@ -128,9 +130,9 @@ mod_lesson_get_pages
 It is disabled by default and limited to authorised users. To use it:
 
 4. Install the plugin, downloaded from
-   [moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector)
+   [moodle-local_mcp_connector](https://github.com/Teci-AI/moodle-local_mcp_connector)
    (*Site administration → Plugins → Install plugins*, or
-   unpack it into `local/mcpconnector`) and complete the upgrade.
+   unpack it into `local/mcp_connector`) and complete the upgrade.
 5. *Site administration → Server → Web services → External services*: edit
    **MCP Connector Service**, tick **Enabled**, and save.
 6. On the same page, open **Authorised users** for that service and add the
@@ -149,7 +151,7 @@ service instead:
 4. *Site administration → Server → Web services → External services*: add a
    custom service, add only the functions your tools need (see the
    [tool tables](https://github.com/Teci-AI/moodle-mcp-connector#tools)), and authorise the dedicated user. If you also want
-   the plugin's write tools, add the `local_mcpconnector_*` functions you
+   the plugin's write tools, add the `local_mcp_connector_*` functions you
    need.
 5. Tick **Can download files** on the service if you use `read_activity` or
    `download_file`.
@@ -192,7 +194,7 @@ lives in a virtual environment), use the full path to the executable, such as
 
 Or let uv fetch and run it from PyPI, with nothing installed beforehand. The
 first start takes a little longer while uv downloads it; after that it runs
-from uv's cache. Use `"moodle-mcp-connector@0.2.0"` instead to pin this
+from uv's cache. Use `"moodle-mcp-connector@0.3.0"` instead to pin this
 release:
 
 ```json
@@ -229,7 +231,7 @@ cache it. When an optional `courseid`/`courseids` argument is omitted, they use
 
 | Tool | Content | Moodle web service functions |
 |---|:---:|---|
-| `server_info` | ✓ | `core_webservice_get_site_info`; when plugin functions are present also `local_mcpconnector_get_info` |
+| `server_info` | ✓ | `core_webservice_get_site_info`; when plugin functions are present also `local_mcp_connector_get_info` |
 | `verify_connection` | ✓ | `core_webservice_get_site_info` |
 | `list_courses` | ✓ | `core_course_get_courses` |
 | `search_courses` | ✓ | `core_course_get_courses_by_field` |
@@ -274,10 +276,10 @@ cache it. When an optional `courseid`/`courseids` argument is omitted, they use
 ### Write tools (`MOODLE_ALLOW_WRITE=true`)
 
 Tools marked **plugin** need the companion plugin
-[moodle-local_mcpconnector](https://github.com/Teci-AI/moodle-local_mcpconnector), which provides the
-`local_mcpconnector_*` functions.
+[moodle-local_mcp_connector](https://github.com/Teci-AI/moodle-local_mcp_connector), which provides the
+`local_mcp_connector_*` functions.
 
-Plugin version 2026102123 provides every function below. If the site runs an
+Plugin version 2026110500 provides every function below. If the site runs an
 older plugin, or the token's service leaves a function out, the tool fails
 with a message naming the missing function rather than a raw Moodle error,
 and `build_course` checks every function an outline needs before it writes
@@ -285,29 +287,29 @@ anything, rejecting the outline if any is missing.
 
 | Tool | Content | Moodle web service functions |
 |---|:---:|---|
-| `create_page` | ✓ | `local_mcpconnector_create_page` (plugin) |
-| `update_page` | ✓ | `local_mcpconnector_update_page` (plugin) |
-| `create_book` | ✓ | `local_mcpconnector_create_book` (plugin) |
-| `create_label` | ✓ | `local_mcpconnector_create_label` (plugin) |
-| `create_url` | ✓ | `local_mcpconnector_create_url` (plugin) |
-| `create_quiz` | ✓ | `local_mcpconnector_create_quiz` (plugin) |
-| `add_quiz_question` | ✓ | `local_mcpconnector_add_quiz_question` (plugin) |
-| `add_truefalse_question` | ✓ | `local_mcpconnector_add_truefalse_question` (plugin) |
-| `add_shortanswer_question` | ✓ | `local_mcpconnector_add_shortanswer_question` (plugin) |
-| `add_essay_question` | ✓ | `local_mcpconnector_add_essay_question` (plugin) |
-| `add_numerical_question` | ✓ | `local_mcpconnector_add_numerical_question` (plugin) |
-| `add_matching_question` | ✓ | `local_mcpconnector_add_matching_question` (plugin) |
-| `create_section` | ✓ | `local_mcpconnector_create_section` (plugin) |
-| `delete_section` | ✓ | `local_mcpconnector_delete_section` (plugin) |
-| `update_activity` | ✓ | `local_mcpconnector_update_activity` (plugin) |
-| `move_activity` | ✓ | `local_mcpconnector_move_activity` (plugin) |
-| `delete_activity` | ✓ | `local_mcpconnector_delete_activity` (plugin) |
-| `create_forum` | | `local_mcpconnector_create_forum` (plugin) |
-| `create_choice` | | `local_mcpconnector_create_choice` (plugin) |
-| `create_assignment` | | `local_mcpconnector_create_assignment` (plugin) |
-| `backup_course` | | `local_mcpconnector_backup_course` (plugin) |
-| `restore_course` | | `local_mcpconnector_restore_course` (plugin) |
-| `build_course` | | `core_webservice_get_site_info` (to check every needed function first), `core_course_create_courses`, `local_mcpconnector_create_section`, `local_mcpconnector_create_page`, `local_mcpconnector_create_label`, `local_mcpconnector_create_url`, `local_mcpconnector_create_forum`, `local_mcpconnector_create_assignment`, `local_mcpconnector_create_choice`, `local_mcpconnector_create_quiz`, the six `local_mcpconnector_add_*_question` functions (plugin); with `rollback=True` also `core_course_delete_courses` |
+| `create_page` | ✓ | `local_mcp_connector_create_page` (plugin) |
+| `update_page` | ✓ | `local_mcp_connector_update_page` (plugin) |
+| `create_book` | ✓ | `local_mcp_connector_create_book` (plugin) |
+| `create_label` | ✓ | `local_mcp_connector_create_label` (plugin) |
+| `create_url` | ✓ | `local_mcp_connector_create_url` (plugin) |
+| `create_quiz` | ✓ | `local_mcp_connector_create_quiz` (plugin) |
+| `add_quiz_question` | ✓ | `local_mcp_connector_add_quiz_question` (plugin) |
+| `add_truefalse_question` | ✓ | `local_mcp_connector_add_truefalse_question` (plugin) |
+| `add_shortanswer_question` | ✓ | `local_mcp_connector_add_shortanswer_question` (plugin) |
+| `add_essay_question` | ✓ | `local_mcp_connector_add_essay_question` (plugin) |
+| `add_numerical_question` | ✓ | `local_mcp_connector_add_numerical_question` (plugin) |
+| `add_matching_question` | ✓ | `local_mcp_connector_add_matching_question` (plugin) |
+| `create_section` | ✓ | `local_mcp_connector_create_section` (plugin) |
+| `delete_section` | ✓ | `local_mcp_connector_delete_section` (plugin) |
+| `update_activity` | ✓ | `local_mcp_connector_update_activity` (plugin) |
+| `move_activity` | ✓ | `local_mcp_connector_move_activity` (plugin) |
+| `delete_activity` | ✓ | `local_mcp_connector_delete_activity` (plugin) |
+| `create_forum` | | `local_mcp_connector_create_forum` (plugin) |
+| `create_choice` | | `local_mcp_connector_create_choice` (plugin) |
+| `create_assignment` | | `local_mcp_connector_create_assignment` (plugin) |
+| `backup_course` | | `local_mcp_connector_backup_course` (plugin) |
+| `restore_course` | | `local_mcp_connector_restore_course` (plugin) |
+| `build_course` | | `core_webservice_get_site_info` (to check every needed function first), `core_course_create_courses`, `local_mcp_connector_create_section`, `local_mcp_connector_create_page`, `local_mcp_connector_create_label`, `local_mcp_connector_create_url`, `local_mcp_connector_create_forum`, `local_mcp_connector_create_assignment`, `local_mcp_connector_create_choice`, `local_mcp_connector_create_quiz`, the six `local_mcp_connector_add_*_question` functions (plugin); with `rollback=True` also `core_course_delete_courses` |
 | `create_course` | | `core_course_create_courses` |
 | `update_course` | | `core_course_update_courses` |
 | `delete_courses` | | `core_course_delete_courses` |

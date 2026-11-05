@@ -1,4 +1,4 @@
-"""server_info reports the local_mcpconnector plugin version and compatibility."""
+"""server_info reports the local_mcp_connector plugin version and compatibility."""
 
 import asyncio
 
@@ -8,7 +8,7 @@ import pytest
 from fakes import site_info
 from moodle_mcp_connector import server
 
-GET_INFO = "local_mcpconnector_get_info"
+GET_INFO = "local_mcp_connector_get_info"
 MIN = server.MIN_PLUGIN_VERSION
 
 
@@ -18,29 +18,29 @@ def run_server_info() -> dict:
 
 def test_minimum_plugin_version():
     # The first plugin release that provides every function this client calls.
-    assert server.MIN_PLUGIN_VERSION == 2026102123
+    assert server.MIN_PLUGIN_VERSION == 2026110500
 
 
 def test_phase1_plugin_is_now_incompatible(fake_call):
     fake_call({
         "core_webservice_get_site_info": site_info(GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector", "version": 2026102110, "release": "0.1.0"},
+        GET_INFO: {"component": "local_mcp_connector", "version": 2026102110, "release": "0.1.0"},
     })
     info = run_server_info()
     assert info["plugin_compatible"] is False
-    assert info["plugin_min_version"] == 2026102123
+    assert info["plugin_min_version"] == 2026110500
 
 
 def test_compatible_plugin(fake_call):
     fake = fake_call({
-        "core_webservice_get_site_info": site_info("local_mcpconnector_create_page", GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector", "version": MIN, "release": "0.2.0"},
+        "core_webservice_get_site_info": site_info("local_mcp_connector_create_page", GET_INFO),
+        GET_INFO: {"component": "local_mcp_connector", "version": MIN, "release": "2.0.0"},
     })
     info = run_server_info()
     assert info["connected"] is True
     assert info["plugin_installed"] is True
     assert info["plugin_version"] == MIN
-    assert info["plugin_release"] == "0.2.0"
+    assert info["plugin_release"] == "2.0.0"
     assert info["plugin_compatible"] is True
     assert "plugin_error" not in info
     assert fake.calls[-1] == (GET_INFO, {})  # called with no params
@@ -49,7 +49,7 @@ def test_compatible_plugin(fake_call):
 def test_newer_plugin_is_compatible_and_string_version_accepted(fake_call):
     fake_call({
         "core_webservice_get_site_info": site_info(GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector", "version": "2027010100", "release": "1.0"},
+        GET_INFO: {"component": "local_mcp_connector", "version": "2027010100", "release": "1.0"},
     })
     info = run_server_info()
     assert info["plugin_version"] == 2027010100
@@ -59,7 +59,7 @@ def test_newer_plugin_is_compatible_and_string_version_accepted(fake_call):
 def test_old_plugin_is_incompatible(fake_call):
     fake_call({
         "core_webservice_get_site_info": site_info(GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector", "version": MIN - 1, "release": "0.1.0"},
+        GET_INFO: {"component": "local_mcp_connector", "version": MIN - 1, "release": "0.1.0"},
     })
     info = run_server_info()
     assert info["plugin_version"] == MIN - 1
@@ -72,7 +72,7 @@ def test_get_info_failure_is_reported_not_raised(fake_call):
         httpx.ConnectError("connection refused"),
     ):
         fake_call({
-            "core_webservice_get_site_info": site_info("local_mcpconnector_create_page"),
+            "core_webservice_get_site_info": site_info("local_mcp_connector_create_page"),
             GET_INFO: failure,
         })
         info = run_server_info()
@@ -86,7 +86,7 @@ def test_get_info_failure_is_reported_not_raised(fake_call):
 def test_malformed_get_info_is_reported_not_raised(fake_call):
     fake_call({
         "core_webservice_get_site_info": site_info(GET_INFO),
-        GET_INFO: {"component": "local_mcpconnector"},  # no version
+        GET_INFO: {"component": "local_mcp_connector"},  # no version
     })
     info = run_server_info()
     assert info["plugin_compatible"] is False

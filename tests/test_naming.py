@@ -1,4 +1,4 @@
-"""The plugin is local_mcpconnector; the previous plugin name must be gone."""
+"""The plugin is local_mcp_connector; the previous plugin name must be gone."""
 
 import subprocess
 from pathlib import Path
@@ -32,5 +32,5 @@ def test_plugin_calls_use_new_prefix():
     from moodle_mcp_connector import server
 
     source = Path(server.__file__).read_text(encoding="utf-8")
-    assert '"local_mcpconnector_create_page"' in source
-    assert server.PLUGIN_PREFIX == "local_mcpconnector_"
+    assert '"local_mcp_connector_create_page"' in source
+    assert server.PLUGIN_PREFIX == "local_mcp_connector_"

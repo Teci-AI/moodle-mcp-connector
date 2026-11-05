@@ -119,7 +119,7 @@ start with `mcptest-`. **Use a development or test site, never production.**
 
 ### One-time setup on the Moodle site
 
-1. Install **local_mcpconnector 0.1.0 (version 2026102123) or newer**.
+1. Install **local_mcp_connector 2.0.0 (version 2026110500) or newer**.
 2. Create an empty category for the tests, for example "MCP connector tests",
    and note its id (the `categoryid=` value in its URL).
 3. Create a dedicated user for the tests, for example `mcp-tests`.
@@ -145,29 +145,29 @@ start with `mcptest-`. **Use a development or test site, never production.**
    core_course_delete_courses
    core_course_get_contents
    core_course_get_courses_by_field
-   local_mcpconnector_get_info
-   local_mcpconnector_create_section
-   local_mcpconnector_delete_section
-   local_mcpconnector_create_page
-   local_mcpconnector_update_page
-   local_mcpconnector_create_book
-   local_mcpconnector_create_label
-   local_mcpconnector_create_url
-   local_mcpconnector_create_forum
-   local_mcpconnector_create_choice
-   local_mcpconnector_create_assignment
-   local_mcpconnector_update_activity
-   local_mcpconnector_move_activity
-   local_mcpconnector_delete_activity
-   local_mcpconnector_create_quiz
-   local_mcpconnector_add_quiz_question
-   local_mcpconnector_add_truefalse_question
-   local_mcpconnector_add_shortanswer_question
-   local_mcpconnector_add_essay_question
-   local_mcpconnector_add_numerical_question
-   local_mcpconnector_add_matching_question
-   local_mcpconnector_backup_course
-   local_mcpconnector_restore_course
+   local_mcp_connector_get_info
+   local_mcp_connector_create_section
+   local_mcp_connector_delete_section
+   local_mcp_connector_create_page
+   local_mcp_connector_update_page
+   local_mcp_connector_create_book
+   local_mcp_connector_create_label
+   local_mcp_connector_create_url
+   local_mcp_connector_create_forum
+   local_mcp_connector_create_choice
+   local_mcp_connector_create_assignment
+   local_mcp_connector_update_activity
+   local_mcp_connector_move_activity
+   local_mcp_connector_delete_activity
+   local_mcp_connector_create_quiz
+   local_mcp_connector_add_quiz_question
+   local_mcp_connector_add_truefalse_question
+   local_mcp_connector_add_shortanswer_question
+   local_mcp_connector_add_essay_question
+   local_mcp_connector_add_numerical_question
+   local_mcp_connector_add_matching_question
+   local_mcp_connector_backup_course
+   local_mcp_connector_restore_course
    ```
 
    The plugin's ready-made **MCP Connector Service** is not enough on its
@@ -230,7 +230,7 @@ Every tool lives in [`moodle_mcp_connector/server.py`](moodle_mcp_connector/serv
 Look the function up in your site's API documentation (*Site administration →
 Development → API Documentation*) and check its parameters, return value and
 the capabilities it requires. Prefer core Moodle functions. A new function in
-the companion plugin (moodle-local_mcpconnector) is only worth adding when
+the companion plugin (moodle-local_mcp_connector) is only worth adding when
 core has no way to do the job.
 
 ### 2. Write the function

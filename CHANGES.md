@@ -1,5 +1,28 @@
 # Changes
 
+## 0.3.0 (2026-11-05)
+
+Follows the companion plugin's new component name. **Breaking:** this
+release only works with the renamed plugin.
+
+- The companion plugin MCP Connector is now component `local_mcp_connector`
+  (it was `local_mcpconnector` up to its 1.0.0), because another Moodle
+  plugin already uses the old name. The plugin write tools call
+  `local_mcp_connector_*` functions, and the ready-made service "MCP
+  Connector Service" has the short name `mcp_connector`. Install the renamed plugin, authorise the dedicated
+  user on its service and create a token for it; then remove
+  `local_mcpconnector`.
+- `server_info` reports the plugin as compatible from its release 2.0.0.
+
+What it contains, unchanged from 0.2.0: **90 tools**, 41 read tools and 49
+write tools; `MOODLE_ALLOW_WRITE=true` enables the write tools, and
+`MOODLE_TOOLSET=content` limits the server to 10 read tools, plus 17 write
+tools when writes are enabled. Parameters are unchanged too.
+
+Requirements: Python 3.11 or newer, and for the plugin write tools
+**local_mcp_connector 2.0.0 or newer (version 2026110500)**, from the
+[moodle-local_mcp_connector releases](https://github.com/Teci-AI/moodle-local_mcp_connector/releases).
+
 ## 0.2.0 (2026-11-04)
 
 Smaller course structures for MCP clients, and one consistent name for the

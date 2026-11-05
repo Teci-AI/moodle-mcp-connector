@@ -13,7 +13,7 @@ from moodle_mcp_connector import server
 ROOT = Path(__file__).resolve().parent.parent
 CHANGES = (ROOT / "CHANGES.md").read_text(encoding="utf-8")
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-PLUGIN_RELEASES = "https://github.com/Teci-AI/moodle-local_mcpconnector/releases"
+PLUGIN_RELEASES = "https://github.com/Teci-AI/moodle-local_mcp_connector/releases"
 
 
 def section(version: str) -> str:

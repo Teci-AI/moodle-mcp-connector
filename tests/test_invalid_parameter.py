@@ -1,6 +1,6 @@
 """The plugin's invalidparameter errors reach the agent with their reason intact.
 
-local_mcpconnector rejects bad input with errorcode "invalidparameter" and a
+local_mcp_connector rejects bad input with errorcode "invalidparameter" and a
 message stating why ("Invalid parameter value: ..."). The agent needs that
 reason verbatim to fix its call, so nothing on the way may rewrite or drop
 it. These tests send a mocked Moodle response through the real _call.
@@ -50,7 +50,7 @@ def test_tool_error_shows_the_reason_verbatim(fake_http):
     assert str(exc.value).endswith(f"Moodle error [invalidparameter]: {REASON}")
     # Not mistaken for a missing function: no function-list lookup, no rewrite.
     assert not fake.called("core_webservice_get_site_info")
-    assert "needs local_mcpconnector" not in str(exc.value)
+    assert "needs local_mcp_connector" not in str(exc.value)
 
 
 @pytest.mark.parametrize("message", [

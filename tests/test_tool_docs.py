@@ -1,7 +1,7 @@
 """Tool descriptions document the plugin's fixed return values and behaviour.
 
 Agents only see these descriptions, so they must name the exact keys the
-local_mcpconnector plugin returns.
+local_mcp_connector plugin returns.
 """
 
 import asyncio
@@ -115,7 +115,7 @@ def test_no_tool_claims_its_function_is_missing(descriptions):
 
 @pytest.mark.parametrize("name", NOW_PROVIDED)
 def test_formerly_missing_tools_still_name_the_plugin(descriptions, name):
-    assert "Requires the local_mcpconnector plugin." in descriptions[name]
+    assert "Requires the local_mcp_connector plugin." in descriptions[name]
 
 
 def test_readme_marks_no_function_as_missing():

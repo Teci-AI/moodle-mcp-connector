@@ -79,9 +79,9 @@ def test_build_course_rejects_quiz_before_any_write(fake_call):
             {"type": "quiz", "name": "Check", "questions": [{"qtype": "truefalse"}]},
         )})
     message = str(exc.value)
-    assert ("quiz needs local_mcpconnector_create_quiz, which this site's plugin "
+    assert ("quiz needs local_mcp_connector_create_quiz, which this site's plugin "
             "version does not provide") in message
-    assert "truefalse questions needs local_mcpconnector_add_truefalse_question" in message
+    assert "truefalse questions needs local_mcp_connector_add_truefalse_question" in message
     assert "page needs" not in message
     assert [name for name, _ in fake.calls] == ["core_webservice_get_site_info"]
 
@@ -116,7 +116,7 @@ def test_single_tool_missing_function_message(fake_http, errorcode):
     with pytest.raises(ToolError) as exc:
         call_tool("create_quiz", {"courseid": 2, "name": "Q"})
     assert str(exc.value).endswith(
-        "create_quiz needs local_mcpconnector_create_quiz, which this site's plugin "
+        "create_quiz needs local_mcp_connector_create_quiz, which this site's plugin "
         "version does not provide (or the token's web service does not include it).")
 
 

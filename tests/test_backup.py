@@ -32,7 +32,7 @@ def in_tmp(tmp_path, monkeypatch):
 
 
 def test_default_saves_under_moodle_filename(fake_call, in_tmp):
-    fake = fake_call({"local_mcpconnector_backup_course": backup_result()})
+    fake = fake_call({"local_mcp_connector_backup_course": backup_result()})
     out = run_backup()
     saved = in_tmp / MOODLE_NAME
     assert saved.read_bytes() == DATA
@@ -40,12 +40,12 @@ def test_default_saves_under_moodle_filename(fake_call, in_tmp):
     assert out["filename"] == MOODLE_NAME
     assert out["size"] == len(DATA)
     assert not (in_tmp / "course_12.mbz").exists()
-    assert fake.calls == [("local_mcpconnector_backup_course",
+    assert fake.calls == [("local_mcp_connector_backup_course",
                            {"courseid": 12, "includeusers": 0})]
 
 
 def test_save_to_still_wins(fake_call, in_tmp):
-    fake_call({"local_mcpconnector_backup_course": backup_result()})
+    fake_call({"local_mcp_connector_backup_course": backup_result()})
     target = in_tmp / "mine.mbz"
     out = run_backup(save_to=str(target))
     assert target.read_bytes() == DATA
@@ -57,7 +57,7 @@ def test_save_to_still_wins(fake_call, in_tmp):
     "../../evil.mbz", "..\\..\\evil.mbz", "/etc/evil.mbz", "C:\\Windows\\evil.mbz",
 ])
 def test_server_filename_cannot_escape_current_directory(fake_call, in_tmp, hostile):
-    fake_call({"local_mcpconnector_backup_course": backup_result(hostile)})
+    fake_call({"local_mcp_connector_backup_course": backup_result(hostile)})
     out = run_backup()
     assert Path(out["saved_to"]) == (in_tmp / "evil.mbz").resolve()
     assert (in_tmp / "evil.mbz").read_bytes() == DATA
@@ -65,6 +65,6 @@ def test_server_filename_cannot_escape_current_directory(fake_call, in_tmp, host
 
 @pytest.mark.parametrize("unusable", ["", None, "..", "dir/"])
 def test_unusable_filename_falls_back(fake_call, in_tmp, unusable):
-    fake_call({"local_mcpconnector_backup_course": backup_result(unusable)})
+    fake_call({"local_mcp_connector_backup_course": backup_result(unusable)})
     out = run_backup()
     assert Path(out["saved_to"]) == (in_tmp / "course_12.mbz").resolve()

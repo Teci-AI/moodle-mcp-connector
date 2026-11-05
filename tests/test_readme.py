@@ -79,15 +79,15 @@ def test_json_config_examples_are_valid():
     assert ["uvx", "moodle-mcp-connector"] in commands  # the PyPI form
 
 
-PLUGIN_REPO_URL = "https://github.com/Teci-AI/moodle-local_mcpconnector"
+PLUGIN_REPO_URL = "https://github.com/Teci-AI/moodle-local_mcp_connector"
 
 
 def test_every_plugin_repository_mention_is_a_link():
     """Readers should reach the companion plugin in one click."""
-    linked = f"[moodle-local_mcpconnector]({PLUGIN_REPO_URL})"
+    linked = f"[moodle-local_mcp_connector]({PLUGIN_REPO_URL})"
     assert linked in README
     without_links = README.replace(linked, "").replace(PLUGIN_REPO_URL, "")
-    assert "moodle-local_mcpconnector" not in without_links
+    assert "moodle-local_mcp_connector" not in without_links
 
 
 def test_every_tool_has_exactly_one_row():
@@ -136,8 +136,8 @@ def test_ready_made_service_list_matches_content_read_tools():
 
 def test_plugin_functions_listed_match_the_code():
     source = Path(server.__file__).read_text(encoding="utf-8")
-    in_code = set(re.findall(r'"(local_mcpconnector_\w+)"', source)) | {
+    in_code = set(re.findall(r'"(local_mcp_connector_\w+)"', source)) | {
         server.PLUGIN_PREFIX + n for n in re.findall(r'PLUGIN_PREFIX \+ "(\w+)"', source)
     }
-    in_readme = set(re.findall(r"`(local_mcpconnector_\w+)`", README))
+    in_readme = set(re.findall(r"`(local_mcp_connector_\w+)`", README))
     assert in_readme == in_code, in_readme ^ in_code

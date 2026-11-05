@@ -82,7 +82,7 @@ def test_contributing_lists_exactly_the_functions_the_live_tests_need():
     tools |= set(re.findall(r'\("(create_\w+)", "\w+", \{', source))  # parametrized
     core = {f for f in _functions_reached(tools) if not f.startswith(server.PLUGIN_PREFIX)}
     server_source = Path(server.__file__).read_text(encoding="utf-8")
-    plugin = set(re.findall(r'"(local_mcpconnector_\w+)"', server_source)) | {
+    plugin = set(re.findall(r'"(local_mcp_connector_\w+)"', server_source)) | {
         server.PLUGIN_PREFIX + n for n in re.findall(r'PLUGIN_PREFIX \+ "(\w+)"', server_source)}
 
     assert documented == core | plugin, documented ^ (core | plugin)

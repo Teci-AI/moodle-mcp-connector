@@ -60,8 +60,8 @@ ALLOW_WRITE = os.environ.get("MOODLE_ALLOW_WRITE", "").strip().lower() == "true"
 
 REST_ENDPOINT = f"{MOODLE_URL}/webservice/rest/server.php"
 
-# Every function of the companion plugin, local_mcpconnector, starts with this.
-PLUGIN_PREFIX = "local_mcpconnector_"
+# Every function of the companion plugin, local_mcp_connector, starts with this.
+PLUGIN_PREFIX = "local_mcp_connector_"
 
 # httpx logs every request URL at INFO. File downloads carry the token in the
 # query string, so keep httpx quiet to stop it reaching MCP client logs.
@@ -397,9 +397,9 @@ def _package_version() -> str:
 
 SERVER_VERSION = _package_version()
 
-# Oldest local_mcpconnector plugin version (its version.php $plugin->version)
+# Oldest local_mcp_connector plugin version (its version.php $plugin->version)
 # whose functions and return values this server is written against.
-MIN_PLUGIN_VERSION = 2026102123
+MIN_PLUGIN_VERSION = 2026110500
 
 
 async def _plugin_status(funcs: set) -> dict:
@@ -437,9 +437,9 @@ async def server_info() -> dict:
     Read-only and cheap. Confirms the MCP server is wired up correctly before
     you rely on it: reports this server's version, whether write tools are
     enabled, whether URL/token are configured, and (via a live site-info call)
-    whether the local_mcpconnector plugin's functions are present on the Moodle
+    whether the local_mcp_connector plugin's functions are present on the Moodle
     site. When they are, it also reports the plugin's version and release
-    (from local_mcpconnector_get_info) and plugin_compatible: whether that
+    (from local_mcp_connector_get_info) and plugin_compatible: whether that
     version is at least plugin_min_version. If the version cannot be read,
     plugin_compatible is false and plugin_error says why. If the site cannot
     be reached or rejects the token, connected is false and error says why.
@@ -1988,7 +1988,7 @@ def _register_write_tools() -> None:
         }
         return await _call("core_files_upload", params)
 
-    # --- Plugin writes (local_mcpconnector) ----------------------------------- #
+    # --- Plugin writes (local_mcp_connector) ----------------------------------- #
 
     @tool()
     async def create_page(
@@ -2001,7 +2001,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Page activity (HTML) in a course.
 
-        Requires the local_mcpconnector plugin on the Moodle site. `content` is the
+        Requires the local_mcp_connector plugin on the Moodle site. `content` is the
         page body (HTML). `section` is the section number and must already
         exist: the plugin does not create missing sections and fails with
         "sectionnotfound" (use create_section first).
@@ -2009,7 +2009,7 @@ def _register_write_tools() -> None:
         Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
-            "local_mcpconnector_create_page",
+            "local_mcp_connector_create_page",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2032,7 +2032,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Book activity plus its first chapter.
 
-        Requires the local_mcpconnector plugin. `chaptercontent` is HTML.
+        Requires the local_mcp_connector plugin. `chaptercontent` is HTML.
         `section` is the section number and must already exist: the plugin
         does not create missing sections and fails with "sectionnotfound".
 
@@ -2040,7 +2040,7 @@ def _register_write_tools() -> None:
         chapterid is the first chapter's id.
         """
         return await _call(
-            "local_mcpconnector_create_book",
+            "local_mcp_connector_create_book",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2062,7 +2062,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Label (inline text/HTML) in a course.
 
-        Requires the local_mcpconnector plugin. Leave `name` empty to have one
+        Requires the local_mcp_connector plugin. Leave `name` empty to have one
         built from the label's text. `section` is the section number and must
         already exist: the plugin does not create missing sections and fails
         with "sectionnotfound".
@@ -2070,7 +2070,7 @@ def _register_write_tools() -> None:
         Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
-            "local_mcpconnector_create_label",
+            "local_mcp_connector_create_label",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2092,7 +2092,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a URL resource in a course.
 
-        Requires the local_mcpconnector plugin. `display` must be a display
+        Requires the local_mcp_connector plugin. `display` must be a display
         mode enabled in the site's URL settings; 0 (automatic) is the safe
         default. `section` is the section number and must already exist: the
         plugin does not create missing sections and fails with
@@ -2101,7 +2101,7 @@ def _register_write_tools() -> None:
         Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
-            "local_mcpconnector_create_url",
+            "local_mcp_connector_create_url",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2128,7 +2128,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an empty Quiz activity (settings only).
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         This creates the quiz container; add questions with the add_*_question
         tools. `timeopen` and `timeclose` are unix timestamps; `timeclose` must not
@@ -2139,7 +2139,7 @@ def _register_write_tools() -> None:
         Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
-            "local_mcpconnector_create_quiz",
+            "local_mcp_connector_create_quiz",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2165,7 +2165,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a multiple-choice question to an existing quiz.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `quizcmid` is the quiz's course module id (the cmid returned by
         create_quiz). `answers` is a list of at least two dicts, each:
@@ -2188,7 +2188,7 @@ def _register_write_tools() -> None:
         """
         _require_list("answers", answers, 2)
         return await _call(
-            "local_mcpconnector_add_quiz_question",
+            "local_mcp_connector_add_quiz_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2209,7 +2209,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a true/false question to a quiz.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `quizcmid` is the quiz's course module id. `correctanswer` = 1 for true,
         0 for false.
@@ -2221,7 +2221,7 @@ def _register_write_tools() -> None:
         Returns {"questionid": int, "slot": int}.
         """
         return await _call(
-            "local_mcpconnector_add_truefalse_question",
+            "local_mcp_connector_add_truefalse_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2242,7 +2242,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a short-answer question to a quiz.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `answers` is a list of at least one accepted answer string (all treated as
         fully correct). `usecase` = 1 for case-sensitive matching.
@@ -2255,7 +2255,7 @@ def _register_write_tools() -> None:
         """
         _require_list("answers", answers)
         return await _call(
-            "local_mcpconnector_add_shortanswer_question",
+            "local_mcp_connector_add_shortanswer_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2279,7 +2279,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add an essay (free-text) question to a quiz.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         Essay questions are graded manually. `graderinfo` is private guidance for
         whoever marks it; `responsetemplate` pre-fills the student's answer box.
@@ -2294,7 +2294,7 @@ def _register_write_tools() -> None:
         Returns {"questionid": int, "slot": int}.
         """
         return await _call(
-            "local_mcpconnector_add_essay_question",
+            "local_mcp_connector_add_essay_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2317,7 +2317,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a numerical question to a quiz.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `answers` is a list of at least one dict, each: {"answer": 42.0,
         "tolerance": 0.5, "fraction": 1.0, "feedback": ""}. A student response
@@ -2338,7 +2338,7 @@ def _register_write_tools() -> None:
         """
         _require_list("answers", answers)
         return await _call(
-            "local_mcpconnector_add_numerical_question",
+            "local_mcp_connector_add_numerical_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2359,7 +2359,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Add a matching question to a quiz.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `pairs` is a list of dicts, each: {"question": "Capital of France",
         "answer": "Paris"}. Students match each left-hand item to the right
@@ -2374,7 +2374,7 @@ def _register_write_tools() -> None:
         """
         _require_list("pairs", pairs, 3)
         return await _call(
-            "local_mcpconnector_add_matching_question",
+            "local_mcp_connector_add_matching_question",
             {
                 "quizcmid": quizcmid,
                 "name": name,
@@ -2419,7 +2419,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Forum activity in a course.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `type` is one of: general, eachuser, single, qanda, blog. Settings this
         tool has no parameter for take the site's forum defaults. `section` must
@@ -2428,7 +2428,7 @@ def _register_write_tools() -> None:
         Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
-            "local_mcpconnector_create_forum",
+            "local_mcp_connector_create_forum",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2451,7 +2451,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a Choice (poll) activity in a course.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         `question` becomes the choice's description, shown above the options.
         `options` is a list of at least two answer strings students pick from.
@@ -2461,7 +2461,7 @@ def _register_write_tools() -> None:
         """
         _require_list("options", options, 2)
         return await _call(
-            "local_mcpconnector_create_choice",
+            "local_mcp_connector_create_choice",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2485,7 +2485,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create an Assignment activity in a course.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         Enables online-text and file submissions with feedback comments.
         `duedate` is a unix timestamp (0 = no due date). `grade` must be between
@@ -2496,7 +2496,7 @@ def _register_write_tools() -> None:
         Returns {"cmid": int, "instanceid": int}.
         """
         return await _call(
-            "local_mcpconnector_create_assignment",
+            "local_mcp_connector_create_assignment",
             {
                 "courseid": courseid,
                 "section": section,
@@ -2517,14 +2517,14 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Create a new section (topic) in a course.
 
-        Requires the local_mcpconnector plugin. `position` 0 appends to the end.
+        Requires the local_mcp_connector plugin. `position` 0 appends to the end.
 
         Returns {"sectionid": int, "sectionnum": int}: the new section's id
         and its number within the course (the `section` value other tools
         take).
         """
         return await _call(
-            "local_mcpconnector_create_section",
+            "local_mcp_connector_create_section",
             {
                 "courseid": courseid,
                 "name": name,
@@ -2537,7 +2537,7 @@ def _register_write_tools() -> None:
     async def update_activity(cmid: int, name: str = "", visible: int = -1) -> dict:
         """⚠️ WRITES LIVE DATA. Rename and/or show/hide an existing activity.
 
-        Requires the local_mcpconnector plugin. `cmid` is the activity's course
+        Requires the local_mcp_connector plugin. `cmid` is the activity's course
         module id. Leave `name` empty to keep it; `visible` = 1 show, 0 hide,
         -1 leave unchanged.
 
@@ -2546,7 +2546,7 @@ def _register_write_tools() -> None:
         which of "name" and "visible" were actually modified.
         """
         return await _call(
-            "local_mcpconnector_update_activity",
+            "local_mcp_connector_update_activity",
             {"cmid": cmid, "name": name, "visible": visible},
         )
 
@@ -2554,14 +2554,14 @@ def _register_write_tools() -> None:
     async def update_page(cmid: int, content: str, intro: str = "") -> dict:
         """⚠️ WRITES LIVE DATA. Replace the content of an existing Page activity.
 
-        Requires the local_mcpconnector plugin. `cmid` is the page's course module
+        Requires the local_mcp_connector plugin. `cmid` is the page's course module
         id; `content` is the new HTML body. Leave `intro` empty to keep the
         current description.
 
         Returns {"cmid": int, "success": bool}.
         """
         return await _call(
-            "local_mcpconnector_update_page",
+            "local_mcp_connector_update_page",
             {"cmid": cmid, "content": content, "intro": intro},
         )
 
@@ -2569,7 +2569,7 @@ def _register_write_tools() -> None:
     async def move_activity(cmid: int, section: int) -> dict:
         """⚠️ WRITES LIVE DATA. Move an activity to a different course section.
 
-        Requires the local_mcpconnector plugin. `cmid` is the activity's course
+        Requires the local_mcp_connector plugin. `cmid` is the activity's course
         module id; `section` is the target section number, which must already
         exist (the plugin fails with "sectionnotfound" otherwise). The activity
         is placed at the END of the target section.
@@ -2578,7 +2578,7 @@ def _register_write_tools() -> None:
         lives in.
         """
         return await _call(
-            "local_mcpconnector_move_activity",
+            "local_mcp_connector_move_activity",
             {"cmid": cmid, "section": section},
         )
 
@@ -2612,12 +2612,12 @@ def _register_write_tools() -> None:
     async def delete_activity(cmid: int) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete an activity from a course.
 
-        Requires the local_mcpconnector plugin. `cmid` is the activity's course
+        Requires the local_mcp_connector plugin. `cmid` is the activity's course
         module id. This permanently removes the activity and its data.
 
         Returns {"cmid": int, "success": bool}.
         """
-        return await _call("local_mcpconnector_delete_activity", {"cmid": cmid})
+        return await _call("local_mcp_connector_delete_activity", {"cmid": cmid})
 
     @tool()
     async def grade_assignment(
@@ -2677,14 +2677,14 @@ def _register_write_tools() -> None:
     async def delete_section(courseid: int, sectionnum: int) -> dict:
         """⚠️ WRITES LIVE DATA — IRREVERSIBLE. Delete a course section.
 
-        Requires the local_mcpconnector plugin. `sectionnum` is the section number
+        Requires the local_mcp_connector plugin. `sectionnum` is the section number
         (1 or higher — the general section 0 cannot be deleted). This removes the
         section AND every activity inside it.
 
         Returns {"success": bool}.
         """
         return await _call(
-            "local_mcpconnector_delete_section",
+            "local_mcp_connector_delete_section",
             {"courseid": courseid, "sectionnum": sectionnum},
         )
 
@@ -2918,7 +2918,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """Back a whole course up to a .mbz file on the local machine.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         The backup runs on the Moodle server and the plugin returns
         {"filename": str, "size": int, "content_base64": str}, where filename is
@@ -2935,7 +2935,7 @@ def _register_write_tools() -> None:
         import base64 as _b64
 
         result = await _call(
-            "local_mcpconnector_backup_course",
+            "local_mcp_connector_backup_course",
             {"courseid": courseid, "includeusers": includeusers},
         )
         path = save_to or _safe_backup_name(result.get("filename"), courseid)
@@ -2955,7 +2955,7 @@ def _register_write_tools() -> None:
     ) -> dict:
         """⚠️ WRITES LIVE DATA. Restore a .mbz backup file into a NEW course.
 
-        Requires the local_mcpconnector plugin.
+        Requires the local_mcp_connector plugin.
 
         Reads the local `filepath` (created by backup_course, or any Moodle .mbz),
         uploads it base64-encoded and restores it as a brand-new course in
@@ -2976,7 +2976,7 @@ def _register_write_tools() -> None:
 
         content = await asyncio.to_thread(Path(filepath).read_bytes)
         return await _call(
-            "local_mcpconnector_restore_course",
+            "local_mcp_connector_restore_course",
             {
                 "content_base64": _b64.b64encode(content).decode("ascii"),
                 "categoryid": categoryid,
@@ -3083,7 +3083,7 @@ def _register_write_tools() -> None:
             name = act.get("name", "")
             if atype == "page":
                 r = await _call(
-                    "local_mcpconnector_create_page",
+                    "local_mcp_connector_create_page",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -3094,7 +3094,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "label":
                 r = await _call(
-                    "local_mcpconnector_create_label",
+                    "local_mcp_connector_create_label",
                     {
                         "courseid": courseid,
                         "content": act.get("text", act.get("content", "")),
@@ -3103,7 +3103,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "url":
                 r = await _call(
-                    "local_mcpconnector_create_url",
+                    "local_mcp_connector_create_url",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -3114,7 +3114,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "forum":
                 r = await _call(
-                    "local_mcpconnector_create_forum",
+                    "local_mcp_connector_create_forum",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -3125,7 +3125,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "assignment":
                 r = await _call(
-                    "local_mcpconnector_create_assignment",
+                    "local_mcp_connector_create_assignment",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -3137,7 +3137,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "choice":
                 r = await _call(
-                    "local_mcpconnector_create_choice",
+                    "local_mcp_connector_create_choice",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -3148,7 +3148,7 @@ def _register_write_tools() -> None:
                 )
             elif atype == "quiz":
                 r = await _call(
-                    "local_mcpconnector_create_quiz",
+                    "local_mcp_connector_create_quiz",
                     {
                         "courseid": courseid,
                         "name": name,
@@ -3173,34 +3173,34 @@ def _register_write_tools() -> None:
             }
             if qtype == "multichoice":
                 await _call(
-                    "local_mcpconnector_add_quiz_question",
+                    "local_mcp_connector_add_quiz_question",
                     {**common, "answers": q.get("answers", []),
                      "single": q.get("single", 1)},
                 )
             elif qtype == "truefalse":
                 await _call(
-                    "local_mcpconnector_add_truefalse_question",
+                    "local_mcp_connector_add_truefalse_question",
                     {**common, "correctanswer": q.get("correct", 1)},
                 )
             elif qtype == "shortanswer":
                 await _call(
-                    "local_mcpconnector_add_shortanswer_question",
+                    "local_mcp_connector_add_shortanswer_question",
                     {**common, "answers": q.get("answers", []),
                      "usecase": q.get("usecase", 0)},
                 )
             elif qtype == "essay":
                 await _call(
-                    "local_mcpconnector_add_essay_question",
+                    "local_mcp_connector_add_essay_question",
                     {**common, "graderinfo": q.get("graderinfo", "")},
                 )
             elif qtype == "numerical":
                 await _call(
-                    "local_mcpconnector_add_numerical_question",
+                    "local_mcp_connector_add_numerical_question",
                     {**common, "answers": q.get("answers", [])},
                 )
             elif qtype == "matching":
                 await _call(
-                    "local_mcpconnector_add_matching_question",
+                    "local_mcp_connector_add_matching_question",
                     {**common, "pairs": q.get("pairs", [])},
                 )
             else:
@@ -3209,7 +3209,7 @@ def _register_write_tools() -> None:
         async def do_build() -> None:
             for i, sec in enumerate(outline.get("sections", []), start=1):
                 r = await _call(
-                    "local_mcpconnector_create_section",
+                    "local_mcp_connector_create_section",
                     {
                         "courseid": courseid,
                         "name": sec.get("name", f"Section {i}"),
